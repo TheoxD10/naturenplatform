@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read, write: if isAuth();
+    }
+
+    // Showroom reports
+    match /showroomReports/{reportId} {
+      allow read, write: if isAuth();
+    }
+
+    // Monthly targets
+    match /monthlyTargets/{targetId} {
+      allow read, write: if isAuth();
+    }
+
+    // Email config & recipients
+    match /emailConfig/{docId} {
+      allow read, write: if isAuth();
+    }
+    match /emailRecipients/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    // Activity log
+    match /activities/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    // Sequential counters (showroom reports + reclamatii)
+    match /counters/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    // Reclamatii
+    match /reclamatii/{reclamatieId} {
+      allow read, write: if isAuth();
+    }
+
+    // Comments — only author can update/delete
+    match /reclamatii_comentarii/{comentariuId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && request.auth.uid == resource.data.userId;
+    }
+
+    // Tags
+    match /reclamatii_etichete/{etichetaId} {
+      allow read, write: if isAuth();
+    }
+  }
+}
