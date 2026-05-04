@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { TaskStatus } from '@/lib/tasks';
 import { getAnalytics, getPeriodRanges } from '@/lib/analytics';
 import { getMonthlyTargets, calculateTargetStatus } from '@/lib/monthlyTargets';
 import { startOfDay, endOfDay } from 'date-fns';
@@ -22,6 +23,7 @@ export default function ManagementPage() {
   const [targetProgress, setTargetProgress] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
   const [recentActivitiesCount, setRecentActivitiesCount] = useState(0);
+  const [activeTaskCount, setActiveTaskCount] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -70,6 +72,13 @@ export default function ManagementPage() {
         setTotalUsers(usersSnap.size);
         setRecentActivitiesCount(activities.length);
       }
+
+      const tasksSnap = await getDocs(collection(db, 'tasks'));
+      const activeTasks = tasksSnap.docs.filter(d => {
+        const s = d.data().status as TaskStatus;
+        return s === 'de_facut' || s === 'in_lucru';
+      });
+      setActiveTaskCount(activeTasks.length);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -200,6 +209,33 @@ export default function ManagementPage() {
                 <div>
                   <div className="text-3xl font-bold text-purple-600">{totalUsers}</div>
                   <div className="text-xs text-slate-500">Utilizatori în sistem</div>
+                </div>
+              )}
+            </Link>
+          )}
+
+          {/* Sarcini */}
+          {(userRole === 'admin' || userRole === 'superior' || userRole === 'management') && (
+            <Link href="/management/tasks"
+              className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-8 shadow-sm transition hover:shadow-lg">
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-teal-50">
+                  <svg className="h-7 w-7 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <svg className="h-5 w-5 text-slate-400 transition group-hover:translate-x-1 group-hover:text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">Sarcini</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                {(userRole === 'admin' || userRole === 'superior') ? 'Atribuiți și urmăriți sarcinile echipei' : 'Sarcinile atribuite vouă'}
+              </p>
+              {dataLoading ? <Spinner /> : (
+                <div>
+                  <div className="text-3xl font-bold text-teal-600">{activeTaskCount}</div>
+                  <div className="text-xs text-slate-500">Sarcini active</div>
                 </div>
               )}
             </Link>

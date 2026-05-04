@@ -90,6 +90,7 @@ export default function Navbar() {
               </>
             )}
             {userRole === 'admin' && navLink('/signup', 'Creare Cont')}
+            {navLink('/management/tasks', 'Sarcini')}
           </nav>
 
           <div className="relative" ref={dropdownRef}>

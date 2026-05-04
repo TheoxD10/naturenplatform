@@ -1,4 +1,4 @@
-import { adminDb } from './firebase-admin';
+import { getAdminDb } from './firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 
 export type ShowroomLocation = 'Sibiu' | 'Iasi' | 'Constanta' | 'Oradea' | 'Bucuresti' | 'Timisoara1' | 'Timisoara2' | 'Cluj';
@@ -32,7 +32,7 @@ async function calculateShowroomMetrics(location: ShowroomLocation, monthlyTarge
   const { start: todayStart, end: todayEnd } = getTodayRange();
   const { start: monthStart, end: monthEnd } = getMonthRange();
 
-  const reportsRef = adminDb.collection('showroomReports');
+  const reportsRef = getAdminDb().collection('showroomReports');
 
   const [todaySnapshot, monthSnapshot] = await Promise.all([
     reportsRef
@@ -75,7 +75,7 @@ async function calculateShowroomMetrics(location: ShowroomLocation, monthlyTarge
 
 async function getMonthlyTargets(): Promise<Map<ShowroomLocation, number>> {
   const now = new Date();
-  const snapshot = await adminDb.collection('monthlyTargets')
+  const snapshot = await getAdminDb().collection('monthlyTargets')
     .where('month', '==', now.getMonth() + 1)
     .where('year', '==', now.getFullYear())
     .get();

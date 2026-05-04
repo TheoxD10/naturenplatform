@@ -1,4 +1,4 @@
-import { adminDb } from './firebase-admin';
+import { getAdminDb } from './firebase-admin';
 import { ActivityType } from './activity';
 import { ShowroomLocation } from './userRoles';
 
@@ -24,7 +24,7 @@ export async function logActivityServer(
   }
 ): Promise<void> {
   try {
-    await adminDb.collection('activities').add({
+    await getAdminDb().collection('activities').add({
       type, userId, userName, userEmail, description,
       metadata: metadata || {},
       timestamp: new Date(),

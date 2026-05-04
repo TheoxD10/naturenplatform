@@ -8,7 +8,11 @@
       "Bash(firebase --version)",
       "Bash(git remote *)",
       "Bash(git branch *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\" -Force)",
+      "Bash(Select-Object Name, FullName)"
     ]
   }
 }

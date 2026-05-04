@@ -1,4 +1,4 @@
-import { adminDb } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import { Reclamatie, STATUS_LABELS } from '@/lib/reclamatii';
 
 const STATUS_STEPS: { key: string; label: string }[] = [
@@ -9,7 +9,7 @@ const STATUS_STEPS: { key: string; label: string }[] = [
 ];
 
 async function getByToken(token: string): Promise<Reclamatie | null> {
-  const snap = await adminDb
+  const snap = await getAdminDb()
     .collection('reclamatii')
     .where('tokenAcces', '==', token)
     .limit(1)
