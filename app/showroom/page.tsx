@@ -76,7 +76,7 @@ export default function ShowroomPage() {
       </header>
 
       {/* ── Content ─────────────────────────────────────── */}
-      <main className={`mx-auto px-4 py-6 ${tab === "ofertare" ? "max-w-2xl" : "max-w-[1800px]"}`}>
+      <main className={`mx-auto px-4 py-6 ${tab === "ofertare" ? "max-w-7xl" : "max-w-[1800px]"}`}>
         {tab === "ofertare" ? <Configurator /> : <MeasurementsSheet />}
       </main>
 

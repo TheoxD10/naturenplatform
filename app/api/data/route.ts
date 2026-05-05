@@ -48,24 +48,16 @@ export async function GET() {
     }
   }
 
-  // Hierarchy rows: add structural leaf types (no prices) from the Level 1-4 tree
-  const hierRows = tocRows
-    .map((r) => r as (string | null | undefined)[])
-    .filter((r) => r[0] === "TOC" && r[1] != null);
-
-  const l3HasL4 = new Set(hierRows.filter((r) => r[3] != null).map((r) => `${r[1]}|${r[2]}`));
-  const l2HasL3 = new Set(hierRows.filter((r) => r[2] != null).map((r) => String(r[1])));
-
-  for (const r of hierRows) {
-    let name: string;
-    if      (r[3] != null)                                         name = `${r[1]} ${r[2]} ${r[3]}`;
-    else if (r[2] != null && !l3HasL4.has(`${r[1]}|${r[2]}`))    name = `${r[1]} ${r[2]}`;
-    else if (r[2] == null && !l2HasL3.has(String(r[1])))          name = String(r[1]);
-    else continue;
-    if (!tocData[name]) tocData[name] = {};
-  }
-
   data["TOC_V2"] = tocData;
+
+  // ── 3. INNOVA static supplement (prices TBD — add rows to Excel Noduri to set real prices) ──
+  if (!data["INNOVA"]) {
+    data["INNOVA"] = { "3D": {}, "LAMINAT": {} };
+    for (const w of [60, 70, 80, 90]) {
+      data["INNOVA"]["3D"][`INNOVA 3D ${w}`] = 0;
+      data["INNOVA"]["LAMINAT"][`LAMINAT ${w}`] = 0;
+    }
+  }
 
   return NextResponse.json(data);
 }

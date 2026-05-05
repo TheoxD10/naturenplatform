@@ -1,7 +1,7 @@
 export const FINISAJ_ORDER = [
   "FI3D", "Vopsit", "CPL", "GREKO", "Premium", "VOPSIT UV",
   "Vopsit Pulbere", "Sticla Graf", "Prefinisat Alb", "Finisaj PVC",
-  "Usi Tehnice Reversibile", "Delight", "Forteca",
+  "Usi Tehnice Reversibile", "Delight", "Forteca", "INNOVA",
 ];
 export const NONE_OPT = "—";
 
@@ -147,7 +147,7 @@ export function manerePriceFromLabel(model: string, tip: string, label: string):
   return null;
 }
 
-export const COSTURI: [string, number][] = [
+export const COSTURI: [string, number | null][] = [
   ["Decupaj ventilatie", 10],
   ["Dimensiune foaie usa 100", 36],
   ["Inlocuire broasca magnetica neagra/aurie", 10],
@@ -155,12 +155,16 @@ export const COSTURI: [string, number][] = [
   ["Prag retractabil", 42],
   ["Finisare culori RAL", 103],
   ["Décor stejar cu noduri", 172],
+  ["Toc tunel", null],
+  ["Scurtari", null],
+  ["Redimensionari", null],
+  ["Montaj", null],
+  ["Transport", null],
+  ["Cost Suplimentar Ajustare 40mm (ERKADO)", null],
 ];
 
-export const COSTURI_LABELS = COSTURI.map(([l, p]) => `${l}  (+${p} EUR)`);
-export const COSTURI_MAP: Record<string, number> = Object.fromEntries(
-  COSTURI.map(([l, p]) => [`${l}  (+${p} EUR)`, p])
-);
+export const COSTURI_LABELS = COSTURI.map(([l]) => l);
+export const COSTURI_MAP: Record<string, number | null> = Object.fromEntries(COSTURI);
 
 export const CULORI_USA = [
   "Alb mat", "Alb lucios", "Negru mat", "Gri mat", "Gri antracit",
@@ -340,6 +344,10 @@ export const CULORI_PER_COLECTIE: Record<string, Record<string, string[]>> = {
   },
   "Prefinisat Alb": {
     "Filomuro deschidere interior/exterior": ["prefinisat", "aluminiu"],
+  },
+  "INNOVA": {
+    "3D":     ["alb", "carpen", "nuc", "stejar riviera", "stejar pastel", "wenge alb", "stejar gotic", "halifax", "silver oak", "attick wood", "bergan", "kasmir"],
+    "LAMINAT":["alb", "carpen", "nuc", "stejar riviera", "stejar pastel", "wenge alb", "stejar gotic", "halifax", "silver oak", "attick wood", "bergan", "kasmir"],
   },
 };
 
