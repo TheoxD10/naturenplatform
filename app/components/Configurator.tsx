@@ -11,7 +11,7 @@ import {
   MANERE_TIPS,
   COSTURI_LABELS,
   COSTURI_MAP,
-  CULORI_USA,
+  CULORI_PER_COLECTIE,
   DESCHIDERI,
   getManereColLabels,
   manerePriceFromLabel,
@@ -194,6 +194,9 @@ export default function Configurator() {
     return [...FINISAJ_ORDER.filter((f) => all.includes(f)), ...all.filter((f) => !FINISAJ_ORDER.includes(f))];
   })();
   const colectieOpts = finisaj ? Object.keys(doorsData[finisaj] ?? {}).sort() : [];
+  const culoriOpts   = (finisaj && colectie)
+    ? (CULORI_PER_COLECTIE[finisaj]?.[colectie] ?? [])
+    : [];
   const modelOpts    = (finisaj && colectie)
     ? sortModels(Object.keys(doorsData[finisaj]?.[colectie] ?? {}))
     : [];
@@ -476,7 +479,7 @@ export default function Configurator() {
           <div className="grid grid-cols-[1fr_1fr_1fr_1.5fr] gap-2 mt-2">
             <div>
               <FieldLabel>Culoare</FieldLabel>
-              <Combo value={culoare} options={CULORI_USA} onChange={setCuloare} placeholder="— culoare —" />
+              <Combo value={culoare} options={culoriOpts} onChange={setCuloare} placeholder="— culoare —" disabled={culoriOpts.length === 0} />
             </div>
             <div>
               <FieldLabel>Deschidere</FieldLabel>
