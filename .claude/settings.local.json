@@ -12,7 +12,13 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\" -Force)",
-      "Bash(Select-Object Name, FullName)"
+      "Bash(Select-Object Name, FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\" -Recurse -Force)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Sort-Object FullName)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(tree \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\" -L 3 -A)",
+      "Bash(npm run *)"
     ]
   }
 }

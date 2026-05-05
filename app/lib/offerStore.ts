@@ -27,6 +27,7 @@ export interface DoorLineItem {
   // Extra costs
   costVars: string[];
   totalEur: number;
+  qty?: number;
   // Measurements (filled in Fișa Măsurători)
   dimUsa: string;
   golInitialLatime: string;
