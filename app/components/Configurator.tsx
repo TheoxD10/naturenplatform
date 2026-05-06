@@ -5,10 +5,11 @@ import {
   FINISAJ_ORDER,
   NONE_OPT,
   DESCHIDERI,
+  ERKADO_REGLAJ,
 } from "../data/constants";
 import { useConfiguratorOptions } from "../hooks/useConfiguratorOptions";
 import { generateOfferPdf, type OfferItem } from "../lib/generatePdf";
-import { upsertOrder, type DoorLineItem } from "../lib/offerStore";
+import { upsertOrder, type DoorLineItem, type TocLineItem } from "../lib/offerStore";
 import { db } from "../../lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
 
@@ -321,8 +322,8 @@ function StepSection({
   };
   const ac = accentMap[accent];
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className={`flex items-center gap-3 ${ac.bar} border-b px-5 py-3`}>
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className={`flex items-center gap-3 ${ac.bar} border-b px-5 py-3 rounded-t-xl`}>
         <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold shrink-0 ${ac.badge}`}>
           {step}
         </span>
@@ -401,11 +402,15 @@ export default function Configurator() {
   const [usaObs, setUsaObs]       = useState("");
   const [currentQty, setCurrentQty] = useState(1);
 
-  const [addToc, setAddToc]       = useState(false);
-  const [tocFinisaj, setTocFinisaj] = useState("");
-  const [tocColectie, setTocColectie] = useState("");
-  const [tocModel, setTocModel]   = useState("");
-  const [tocObs, setTocObs]       = useState("");
+  // ── Standalone TOC form ───────────────────────────────────
+  const [tocFinisaj, setTocFinisaj]     = useState("");
+  const [tocBrand, setTocBrand]         = useState<"" | "naturen" | "erkado">("");
+  const [tocColectie, setTocColectie]   = useState("");
+  const [tocModel, setTocModel]         = useState("");
+  const [tocObs, setTocObs]             = useState("");
+  const [tocStandaloneQty, setTocStandaloneQty] = useState(1);
+  const [tocCostVars, setTocCostVars]   = useState<string[]>([""]);
+  const [tocCostCustomPrices, setTocCostCustomPrices] = useState<Record<string, string>>({});
 
   const [nrBal, setNrBal]         = useState("");
   const [balMod, setBalMod]       = useState("");
@@ -429,6 +434,9 @@ export default function Configurator() {
 
   // ── Cart ───────────────────────────────────────────────────
   const [cartDoors, setCartDoors] = useState<DoorLineItem[]>([]);
+  const [cartTocs, setCartTocs]   = useState<TocLineItem[]>([]);
+  const [editingDoor, setEditingDoor] = useState<string | null>(null);
+  const [editingToc, setEditingToc]   = useState<string | null>(null);
 
   // ── Offer details ──────────────────────────────────────────
   const [offerNumber, setOfferNumber]   = useState(() => String(Math.floor(Math.random() * 1000) + 3000));
@@ -474,17 +482,21 @@ export default function Configurator() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tocV2 = (doorsData["TOC_V2"] ?? {}) as Record<string, Record<string, Record<string, any>>>;
-  const tocTipOpts      = Object.keys(tocV2);
-  const tocAllReglaj    = tocFinisaj ? Object.keys(tocV2[tocFinisaj] ?? {}).filter((k) => k !== "__") : [];
-  const tocShowReglaj   = tocAllReglaj.length >= 2;
-  const effectiveTocColectie = tocShowReglaj
+  const tocTipOpts   = Object.keys(tocV2);
+  const tocAllReglaj = tocFinisaj ? Object.keys(tocV2[tocFinisaj] ?? {}).filter(k => k !== "__") : [];
+
+  const tocShowReglaj = tocAllReglaj.length >= 2;
+  const effectiveTocColectie = tocBrand === "erkado"
+    ? ""
+    : tocShowReglaj
     ? tocColectie
     : tocAllReglaj.length === 1
     ? tocAllReglaj[0]
     : "__";
-  const tocFinisajOpts  = (tocFinisaj && effectiveTocColectie)
+  const tocFinisajOpts = (tocBrand === "naturen" && tocFinisaj && effectiveTocColectie)
     ? Object.keys(tocV2[tocFinisaj]?.[effectiveTocColectie] ?? {})
     : [];
+  const erkadoReglajPrices = Object.fromEntries(ERKADO_REGLAJ.map(r => [r.range, r.priceEur]));
 
   // ── All cost options (from Firestore) ────────────────────
   const allCostLabels = costuriLabels;
@@ -517,7 +529,12 @@ export default function Configurator() {
   const usaPrice = (finisaj && colectie && model)
     ? (doorPriceOverrides[`${finisaj}|${colectie}|${model}`] ?? doorsData[finisaj]?.[colectie]?.[model] ?? null)
     : null;
-  const tocPrice  = (tocFinisaj && tocFinisaj !== "Toc tunel" && effectiveTocColectie && tocModel)
+  const erkadoReglajPrice = tocBrand === "erkado"
+    ? (ERKADO_REGLAJ.find(r => r.range === tocColectie)?.priceEur ?? null)
+    : null;
+  const tocPrice = tocBrand === "erkado"
+    ? erkadoReglajPrice
+    : (tocFinisaj && tocFinisaj !== "Toc tunel" && effectiveTocColectie && tocModel)
     ? (tocV2[tocFinisaj]?.[effectiveTocColectie]?.[tocModel] ?? null)
     : null;
   const effectiveTocPrice = tocFinisaj === "Toc tunel"
@@ -539,8 +556,8 @@ export default function Configurator() {
 
   // Auto-save buyer info to Firestore whenever it changes (debounced 1.5s)
   useEffect(() => {
-    if (!buyerName && !buyerPhone && cartDoors.length === 0) return;
-    const t = setTimeout(() => saveOfferSnapshot(cartDoors), 1500);
+    if (!buyerName && !buyerPhone && cartDoors.length === 0 && cartTocs.length === 0) return;
+    const t = setTimeout(() => saveOfferSnapshot(cartDoors, cartTocs), 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buyerName, buyerPhone, buyerAddress, agent, offerNumber, offerDate, exchangeRate, discountPercent, deliveryDays, advancePercent]);
@@ -556,15 +573,16 @@ export default function Configurator() {
 
   const currentDoorUnitTotal =
     (usaPrice ?? 0) +
-    (addToc && effectiveTocPrice ? effectiveTocPrice : 0) +
     (ferPrice ?? 0) +
     (manPrice ?? 0) +
     currentCostParts.reduce((s, p) => s + p, 0);
 
   const currentDoorTotal = currentDoorUnitTotal * currentQty;
 
-  const cartTotal  = cartDoors.reduce((s, d) => s + d.totalEur * (d.qty ?? 1), 0);
-  const grandTotal = cartTotal + currentDoorTotal;
+  const cartDoorsTotal = cartDoors.reduce((s, d) => s + d.totalEur * (d.qty ?? 1), 0);
+  const cartTocsTotal  = cartTocs.reduce((s, t) => s + t.totalEur * t.qty, 0);
+  const cartTotal      = cartDoorsTotal + cartTocsTotal;
+  const grandTotal     = cartTotal + currentDoorTotal;
   const rate       = parseFloat(exchangeRate) || 4.97;
 
   // ── Form handlers ──────────────────────────────────────────
@@ -575,10 +593,16 @@ export default function Configurator() {
   }
   function resetDoorForm() {
     setFinisaj(""); setColectie(""); setModel(""); setCuloare(""); setDeschidere(""); setUsaObs("");
-    setAddToc(false); setTocFinisaj(""); setTocColectie(""); setTocModel(""); setTocObs("");
-    setTocTunelPrice(""); setTocTunelFaraFalt(false);
     setCurrentQty(1);
+    setEditingDoor(null);
     resetHw();
+  }
+  function resetTocForm() {
+    setTocFinisaj(""); setTocBrand(""); setTocColectie(""); setTocModel(""); setTocObs("");
+    setTocStandaloneQty(1);
+    setTocTunelPrice(""); setTocTunelFaraFalt(false);
+    setTocCostVars([""]); setTocCostCustomPrices({});
+    setEditingToc(null);
   }
 
   function handleFinisaj(v: string)  { setFinisaj(v); setColectie(""); setModel(""); setCuloare(""); setDeschidere(""); resetHw(); }
@@ -593,13 +617,6 @@ export default function Configurator() {
     const next = [...costVars.slice(0, idx), val];
     if (val && val !== NONE_OPT) next.push("");
     setCostVars(next);
-  }
-  function handleAddToc(checked: boolean) {
-    setAddToc(checked);
-    if (!checked) {
-      setTocFinisaj(""); setTocColectie(""); setTocModel(""); setTocObs("");
-      setTocTunelPrice(""); setTocTunelFaraFalt(false);
-    }
   }
   function handleTocTip(v: string) {
     setTocTunelPrice(""); setTocTunelFaraFalt(false);
@@ -638,7 +655,21 @@ export default function Configurator() {
     deleteDoorPriceOverride(key);
     if (model === modelName) setModel("");
   }
+  function handleTocBrand(b: "naturen" | "erkado") {
+    setTocBrand(b); setTocColectie(""); setTocModel("");
+  }
+
+  function handleTocCost(idx: number, val: string) {
+    const next = [...tocCostVars.slice(0, idx), val];
+    if (val && val !== NONE_OPT) next.push("");
+    setTocCostVars(next);
+  }
+
   function handleTocReglaj(v: string) {
+    if (tocBrand === "erkado") {
+      setTocColectie(v); setTocModel("");
+      return;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toc = (doorsData["TOC_V2"] ?? {}) as Record<string, Record<string, Record<string, any>>>;
     const fins = v ? Object.keys(toc[tocFinisaj]?.[v] ?? {}) : [];
@@ -646,7 +677,8 @@ export default function Configurator() {
   }
 
   // ── Firestore auto-save ────────────────────────────────────
-  function saveOfferSnapshot(doors: DoorLineItem[]) {
+  function saveOfferSnapshot(doors: DoorLineItem[], tocs?: TocLineItem[]) {
+    const effectiveTocs = tocs ?? cartTocs;
     setDoc(doc(db, "offers", offerId), {
       offerNumber,
       offerDate,
@@ -658,9 +690,11 @@ export default function Configurator() {
       discountPercent: parseFloat(discountPercent) || 0,
       deliveryDays,
       advancePercent: parseFloat(advancePercent) || 50,
-      totalEur: doors.reduce((s, d) => s + d.totalEur * (d.qty ?? 1), 0),
+      totalEur: doors.reduce((s, d) => s + d.totalEur * (d.qty ?? 1), 0) +
+                effectiveTocs.reduce((s, t) => s + t.totalEur * t.qty, 0),
       doorsCount: doors.reduce((s, d) => s + (d.qty ?? 1), 0),
       doors,
+      tocs: effectiveTocs,
       updatedAt: new Date().toISOString(),
     }).catch(() => {});
   }
@@ -674,14 +708,46 @@ export default function Configurator() {
       const p = parseFloat(costCustomPrices[v] ?? "");
       if (!isNaN(p) && p > 0) savedCustomPrices[v] = p;
     }
+
+    if (editingDoor) {
+      const original = cartDoors.find(d => d.id === editingDoor);
+      const updated: DoorLineItem = {
+        id: editingDoor,
+        finisaj, colectie, model, culoare, deschidere, usaObs,
+        usaPrice: usaPrice ?? 0,
+        addToc: false, tocFinisaj: "", tocColectie: "", tocModel: "", tocObs: "", tocPrice: 0,
+        nrBal, balMod, balCol, ferPrice: ferPrice ?? 0,
+        manMod, manTip, manCol, manPrice: manPrice ?? 0,
+        costVars: activeCostVars,
+        costCustomPrices: savedCustomPrices,
+        totalEur: currentDoorUnitTotal,
+        qty: currentQty,
+        dimUsa: original?.dimUsa ?? "",
+        golInitialLatime: original?.golInitialLatime ?? "",
+        golInitialInaltime: original?.golInitialInaltime ?? "",
+        grosimePerete: original?.grosimePerete ?? "",
+        reglajToc: original?.reglajToc ?? "",
+        golFinisatLatime: original?.golFinisatLatime ?? "",
+        golFinisatInaltime: original?.golFinisatInaltime ?? "",
+        scurtare: original?.scurtare ?? "",
+        tipBroasca: original?.tipBroasca ?? "",
+        umplere: original?.umplere ?? "",
+        observatii: original?.observatii ?? "",
+      };
+      const newDoors = cartDoors.map(d => d.id === editingDoor ? updated : d);
+      setCartDoors(newDoors);
+      saveOfferSnapshot(newDoors);
+      setEditingDoor(null);
+      return;
+    }
+
     const door: DoorLineItem = {
       id: `door-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       finisaj, colectie, model, culoare, deschidere, usaObs,
       usaPrice: usaPrice ?? 0,
-      addToc,
-      tocFinisaj, tocColectie, tocModel,
-      tocObs: tocFinisaj === "Toc tunel" && tocTunelFaraFalt ? "Toc reglabil fara falt" : tocObs,
-      tocPrice: (addToc && effectiveTocPrice) ? effectiveTocPrice : 0,
+      addToc: false,
+      tocFinisaj: "", tocColectie: "", tocModel: "",
+      tocObs: "", tocPrice: 0,
       nrBal, balMod, balCol, ferPrice: ferPrice ?? 0,
       manMod, manTip, manCol, manPrice: manPrice ?? 0,
       costVars: activeCostVars,
@@ -697,7 +763,6 @@ export default function Configurator() {
     const newDoors = [...cartDoors, door];
     setCartDoors(newDoors);
     saveOfferSnapshot(newDoors);
-    resetDoorForm();
   }
 
   function handleRemoveDoor(id: string) {
@@ -718,9 +783,147 @@ export default function Configurator() {
     saveOfferSnapshot(newDoors);
   }
 
+  function handlePatchDoor(id: string, patch: Partial<DoorLineItem>) {
+    const newDoors = cartDoors.map((d) => d.id === id ? { ...d, ...patch } : d);
+    setCartDoors(newDoors);
+    saveOfferSnapshot(newDoors);
+  }
+
+  function handlePatchDoorColectie(id: string, doorFinisaj: string, newColectie: string) {
+    handlePatchDoor(id, { colectie: newColectie, model: "", culoare: "", usaPrice: 0, totalEur: 0 });
+  }
+
+  function handlePatchDoorModel(id: string, door: DoorLineItem, newModel: string) {
+    const newUsaPrice = doorPriceOverrides[`${door.finisaj}|${door.colectie}|${newModel}`]
+      ?? doorsData[door.finisaj]?.[door.colectie]?.[newModel]
+      ?? door.usaPrice;
+    const costTotal = door.costVars.reduce((s, v) => {
+      if (!v) return s;
+      const p = door.costCustomPrices?.[v] ?? costuriMap[v];
+      return s + (typeof p === "number" ? p : 0);
+    }, 0);
+    const newTotal = newUsaPrice + door.ferPrice + door.manPrice + costTotal;
+    handlePatchDoor(id, { model: newModel, usaPrice: newUsaPrice, totalEur: newTotal });
+  }
+
+  // ── TOC cart actions ──────────────────────────────────────
+  function handleAddTocToCart() {
+    const tocPriceVal = effectiveTocPrice ?? 0;
+    if (tocPriceVal === 0) return;
+    const isErkado = tocBrand === "erkado";
+    const erkadoRangeVal = isErkado ? tocColectie : "";
+
+    const activeTocCostVars = tocCostVars.filter(v => v && v !== NONE_OPT);
+    const savedTocCustomPrices: Record<string, number> = {};
+    for (const v of activeTocCostVars) {
+      const p = parseFloat(tocCostCustomPrices[v] ?? "");
+      if (!isNaN(p) && p > 0) savedTocCustomPrices[v] = p;
+    }
+    const tocCostTotal = activeTocCostVars.reduce((s, v) => {
+      const p = allCostPrices[v];
+      if (typeof p === "number") return s + p;
+      const cp = parseFloat(tocCostCustomPrices[v] ?? "0");
+      return s + (isNaN(cp) ? 0 : cp);
+    }, 0);
+
+    const makeItem = (id: string): TocLineItem => ({
+      id,
+      brand: isErkado ? "erkado" : "naturen",
+      tocFinisaj, tocColectie, tocModel,
+      erkadoRange: erkadoRangeVal,
+      erkadoCollection: "",
+      obs: tocFinisaj === "Toc tunel" && tocTunelFaraFalt ? "Toc reglabil fara falt" : tocObs,
+      tocPrice: tocPriceVal,
+      costVars: activeTocCostVars,
+      costCustomPrices: savedTocCustomPrices,
+      qty: tocStandaloneQty,
+      totalEur: tocPriceVal + tocCostTotal,
+    });
+
+    if (editingToc) {
+      const newTocs = cartTocs.map(t => t.id === editingToc ? makeItem(editingToc) : t);
+      setCartTocs(newTocs);
+      saveOfferSnapshot(cartDoors, newTocs);
+      setEditingToc(null);
+      return;
+    }
+
+    const newTocs = [...cartTocs, makeItem(`toc-${Date.now()}-${Math.random().toString(36).slice(2)}`)];
+    setCartTocs(newTocs);
+    saveOfferSnapshot(cartDoors, newTocs);
+  }
+
+  function handleRemoveToc(id: string) {
+    const newTocs = cartTocs.filter(t => t.id !== id);
+    setCartTocs(newTocs);
+    saveOfferSnapshot(cartDoors, newTocs);
+  }
+
+  function handleDuplicateToc(toc: TocLineItem) {
+    const newTocs = [...cartTocs, { ...toc, id: `toc-${Date.now()}-dup-${Math.random().toString(36).slice(2)}` }];
+    setCartTocs(newTocs);
+    saveOfferSnapshot(cartDoors, newTocs);
+  }
+
+  function handleUpdateTocQty(id: string, qty: number) {
+    const newTocs = cartTocs.map(t => t.id === id ? { ...t, qty: Math.max(1, qty) } : t);
+    setCartTocs(newTocs);
+    saveOfferSnapshot(cartDoors, newTocs);
+  }
+
+  function handlePatchToc(id: string, patch: Partial<TocLineItem>) {
+    const newTocs = cartTocs.map(t => t.id === id ? { ...t, ...patch } : t);
+    setCartTocs(newTocs);
+    saveOfferSnapshot(cartDoors, newTocs);
+  }
+
   function handleFullReset() {
     resetDoorForm();
+    resetTocForm();
     setCartDoors([]);
+    setCartTocs([]);
+  }
+
+  // ── Edit mode: load a cart item back into its form ────────
+  function handleEditDoor(door: DoorLineItem) {
+    setEditingDoor(door.id);
+    setFinisaj(door.finisaj);
+    setColectie(door.colectie);
+    setModel(door.model);
+    setCuloare(door.culoare);
+    setDeschidere(door.deschidere);
+    setUsaObs(door.usaObs);
+    setCurrentQty(door.qty ?? 1);
+    setNrBal(door.nrBal);
+    setBalMod(door.balMod);
+    setBalCol(door.balCol);
+    setManMod(door.manMod);
+    setManTip(door.manTip);
+    setManCol(door.manCol);
+    setCostVars(door.costVars.length > 0 ? [...door.costVars, ""] : [""]);
+    setCostCustomPrices(Object.fromEntries(
+      Object.entries(door.costCustomPrices ?? {}).map(([k, v]) => [k, String(v)])
+    ));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleEditToc(toc: TocLineItem) {
+    setEditingToc(toc.id);
+    setTocFinisaj(toc.tocFinisaj);
+    setTocBrand(toc.brand === "erkado" ? "erkado" : "naturen");
+    setTocColectie(toc.brand === "erkado" ? toc.erkadoRange : toc.tocColectie);
+    setTocModel(toc.tocModel);
+    setTocObs(toc.obs);
+    setTocStandaloneQty(toc.qty);
+    const savedCostVars = toc.costVars ?? [];
+    setTocCostVars(savedCostVars.length > 0 ? [...savedCostVars, ""] : [""]);
+    setTocCostCustomPrices(Object.fromEntries(
+      Object.entries(toc.costCustomPrices ?? {}).map(([k, v]) => [k, String(v)])
+    ));
+    if (toc.tocFinisaj === "Toc tunel") {
+      setTocTunelPrice(String(toc.tocPrice));
+      setTocTunelFaraFalt(toc.obs === "Toc reglabil fara falt");
+    }
   }
 
   // ── PDF ───────────────────────────────────────────────────
@@ -735,9 +938,9 @@ export default function Configurator() {
       id: `door-current-${Date.now()}`,
       finisaj, colectie, model, culoare, deschidere, usaObs,
       usaPrice: usaPrice ?? 0,
-      addToc, tocFinisaj, tocColectie, tocModel,
-      tocObs: tocFinisaj === "Toc tunel" && tocTunelFaraFalt ? "Toc reglabil fara falt" : tocObs,
-      tocPrice: (addToc && effectiveTocPrice) ? effectiveTocPrice : 0,
+      addToc: false,
+      tocFinisaj: "", tocColectie: "", tocModel: "",
+      tocObs: "", tocPrice: 0,
       nrBal, balMod, balCol, ferPrice: ferPrice ?? 0,
       manMod, manTip, manCol, manPrice: manPrice ?? 0,
       costVars: currActiveCostVars,
@@ -752,7 +955,7 @@ export default function Configurator() {
     } : null;
 
     const doorsForPdf = currentAsItem ? [...cartDoors, currentAsItem] : cartDoors;
-    if (doorsForPdf.length === 0) return;
+    if (doorsForPdf.length === 0 && cartTocs.length === 0) return;
 
     const items: OfferItem[] = [];
     for (const d of doorsForPdf) {
@@ -764,18 +967,6 @@ export default function Configurator() {
         qty: q,
         priceRon: d.usaPrice * rate,
       });
-      if (d.addToc && d.tocPrice) {
-        const tocName = d.tocFinisaj === "Toc tunel"
-          ? "Toc tunel — reglabil drept"
-          : `Toc ${d.tocFinisaj}${d.tocColectie && d.tocColectie !== "__" ? ` ${d.tocColectie}` : ""}${d.tocModel ? ` - ${d.tocModel}` : ""}`;
-        items.push({
-          name: tocName,
-          obs: d.tocObs || undefined,
-          um: "buc",
-          qty: q,
-          priceRon: d.tocPrice * rate,
-        });
-      }
       if (d.ferPrice && d.nrBal) {
         items.push({
           name: `Feronerie ${d.nrBal} - ${d.balMod} ${d.balCol}`,
@@ -801,6 +992,22 @@ export default function Configurator() {
       }
     }
 
+    // Add standalone TOC items to PDF
+    for (const t of cartTocs) {
+      const tocLabel = t.brand === "erkado"
+        ? `Toc Erkado${t.tocFinisaj ? ` ${t.tocFinisaj}` : ""} — Reglaj ${t.erkadoRange}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
+        : t.tocFinisaj === "Toc tunel"
+          ? "Toc tunel — reglabil drept"
+          : `Toc ${t.tocFinisaj}${t.tocColectie && t.tocColectie !== "__" ? ` ${t.tocColectie}` : ""}${t.tocModel ? ` — ${t.tocModel}` : ""}`;
+      items.push({
+        name: tocLabel,
+        obs: t.obs || undefined,
+        um: "buc",
+        qty: t.qty,
+        priceRon: t.tocPrice * rate,
+      });
+    }
+
     const totalRon = items.reduce((s, i) => s + i.priceRon * i.qty, 0);
     const advRon   = totalRon * (parseFloat(advancePercent) / 100);
 
@@ -812,6 +1019,7 @@ export default function Configurator() {
       buyerName,
       buyerPhone,
       doors: doorsForPdf,
+      tocs: cartTocs,
     });
 
     generateOfferPdf({
@@ -848,8 +1056,7 @@ export default function Configurator() {
     }).catch(() => {});
   }
 
-  const canGenerate = cartDoors.length > 0 || usaPrice !== null;
-  const totalDoors  = cartDoors.reduce((s, d) => s + (d.qty ?? 1), 0) + (usaPrice !== null ? currentQty : 0);
+  const canGenerate = cartDoors.length > 0 || cartTocs.length > 0 || usaPrice !== null;
 
   if (loading) {
     return (
@@ -868,7 +1075,13 @@ export default function Configurator() {
     <div className="space-y-4">
 
       {/* ── PASUL 1: Configurare ușă ──────────────────────── */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-5">
+      <div className={`rounded-xl border bg-white shadow-sm p-5 ${editingDoor ? "border-amber-400 ring-2 ring-amber-200" : "border-slate-200"}`}>
+        {editingDoor && (
+          <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+            <span className="text-xs font-semibold text-amber-700">Editezi ușa {cartDoors.findIndex(d => d.id === editingDoor) + 1} — modifică orice câmp și salvează</span>
+            <button onClick={resetDoorForm} className="text-xs text-amber-600 hover:text-amber-800 font-medium underline">Anulează editarea</button>
+          </div>
+        )}
         {/* Ușă */}
         <Divider label="Ușă" />
         <div className="grid grid-cols-[1fr_1fr_1.5fr_auto] gap-2 items-end mb-2">
@@ -910,81 +1123,6 @@ export default function Configurator() {
                 className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
             </div>
-          </div>
-        )}
-
-        {/* Toc toggle */}
-        <label className="flex items-center gap-2.5 cursor-pointer select-none mt-4 mb-2">
-          <div
-            onClick={() => handleAddToc(!addToc)}
-            className={`relative w-9 h-5 rounded-full transition-colors ${addToc ? "bg-indigo-500" : "bg-slate-300"}`}
-          >
-            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${addToc ? "translate-x-4" : "translate-x-0.5"}`} />
-          </div>
-          <span className="text-sm font-medium text-slate-700">Adaugă Toc</span>
-        </label>
-
-        {addToc && (
-          <div className="mt-1 mb-3 pl-3 border-l-2 border-indigo-200">
-            <div className="flex gap-2 items-end">
-              <div className="flex-[1.5]">
-                <FieldLabel>Tip toc</FieldLabel>
-                <Combo value={tocFinisaj} options={["Toc tunel", ...tocTipOpts]} onChange={handleTocTip} />
-              </div>
-              {tocFinisaj === "Toc tunel" ? (
-                <>
-                  <div className="flex-1">
-                    <FieldLabel>Pret reglabil drept (EUR)</FieldLabel>
-                    <input
-                      type="number" min="0" placeholder="0"
-                      value={tocTunelPrice}
-                      onChange={e => setTocTunelPrice(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                    />
-                    <p className="text-[10px] text-slate-400 mt-0.5">Aferent domeniului de reglare</p>
-                  </div>
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none self-center mt-3">
-                    <input
-                      type="checkbox"
-                      checked={tocTunelFaraFalt}
-                      onChange={e => setTocTunelFaraFalt(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600"
-                    />
-                    <span className="text-sm text-slate-600 whitespace-nowrap">Fara falt</span>
-                  </label>
-                  <PriceBadge price={parseFloat(tocTunelPrice) || null} selected={!!tocTunelPrice} />
-                </>
-              ) : (
-                <>
-                  {tocShowReglaj && (
-                    <div className="flex-1">
-                      <FieldLabel>Reglaj</FieldLabel>
-                      <Combo value={tocColectie} options={tocAllReglaj} onChange={handleTocReglaj} disabled={!tocFinisaj}
-                        optionPrices={tocAllReglajPrices} />
-                    </div>
-                  )}
-                  {tocFinisajOpts.length > 0 && (
-                    <div className="flex-1">
-                      <FieldLabel>Finisaj toc</FieldLabel>
-                      <Combo value={tocModel} options={tocFinisajOpts} onChange={setTocModel} disabled={!effectiveTocColectie}
-                        optionPrices={tocFinisajPrices} />
-                    </div>
-                  )}
-                  <PriceBadge price={tocPrice} selected={!!tocFinisaj} />
-                </>
-              )}
-            </div>
-            {tocFinisaj !== "Toc tunel" && (
-              <div className="mt-2">
-                <FieldLabel>Observații toc</FieldLabel>
-                <input
-                  value={tocObs}
-                  onChange={(e) => setTocObs(e.target.value)}
-                  placeholder="ex: Reglabil 100-120…"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-            )}
           </div>
         )}
 
@@ -1111,7 +1249,7 @@ export default function Configurator() {
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  Adaugă la ofertă
+                  {editingDoor ? "Salvează modificările" : "Adaugă la ofertă"}
                 </button>
               </div>
             </div>
@@ -1119,91 +1257,353 @@ export default function Configurator() {
         )}
       </div>
 
-      {/* ── PASUL 2: Coș uși ─────────────────────────────── */}
-      {cartDoors.length > 0 && (
-        <StepSection step={2} title={`Uși adăugate (${cartDoors.length} tipuri · ${cartDoors.reduce((s,d)=>s+(d.qty??1),0)} buc)`} icon="📋" accent="blue">
+      {/* ── PASUL 2: Configurare toc ─────────────────────── */}
+      <StepSection step={2} title={editingToc ? `Editezi tocul ${cartTocs.findIndex(t => t.id === editingToc) + 1}` : "Configurare Toc"} icon="🚪" accent="indigo">
+        {editingToc && (
+          <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+            <span className="text-xs font-semibold text-amber-700">Editezi tocul {cartTocs.findIndex(t => t.id === editingToc) + 1} — modifică orice câmp și salvează</span>
+            <button onClick={resetTocForm} className="text-xs text-amber-600 hover:text-amber-800 font-medium underline">Anulează editarea</button>
+          </div>
+        )}
+        <div className="space-y-3">
+          <div className="flex gap-2 items-end">
+            <div className="flex-[1.5]">
+              <FieldLabel>Tip toc</FieldLabel>
+              <Combo value={tocFinisaj} options={["Toc tunel", ...tocTipOpts]} onChange={handleTocTip} />
+            </div>
+            {tocFinisaj === "Toc tunel" ? (
+              <>
+                <div className="flex-1">
+                  <FieldLabel>Pret reglabil drept (EUR)</FieldLabel>
+                  <input
+                    type="number" min="0" placeholder="0"
+                    value={tocTunelPrice}
+                    onChange={e => setTocTunelPrice(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Aferent domeniului de reglare</p>
+                </div>
+                <label className="flex items-center gap-1.5 cursor-pointer select-none self-center mt-3">
+                  <input
+                    type="checkbox"
+                    checked={tocTunelFaraFalt}
+                    onChange={e => setTocTunelFaraFalt(e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600"
+                  />
+                  <span className="text-sm text-slate-600 whitespace-nowrap">Fara falt</span>
+                </label>
+                <PriceBadge price={parseFloat(tocTunelPrice) || null} selected={!!tocTunelPrice} />
+              </>
+            ) : tocFinisaj ? (
+              <>
+                {/* Brand selector */}
+                <div className="flex-none self-end pb-0.5">
+                  <FieldLabel>Brand</FieldLabel>
+                  <div className="flex gap-1 mt-1">
+                    {(["naturen", "erkado"] as const).map(b => (
+                      <button
+                        key={b}
+                        onClick={() => handleTocBrand(b)}
+                        className={`px-3 py-2 rounded-lg text-xs font-semibold border transition ${
+                          tocBrand === b
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                            : "bg-white text-slate-600 border-slate-300 hover:border-indigo-300 hover:text-indigo-600"
+                        }`}
+                      >
+                        {b === "naturen" ? "Naturen" : "Erkado"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {tocBrand === "erkado" && (
+                  <div className="flex-1">
+                    <FieldLabel>Reglaj</FieldLabel>
+                    <Combo value={tocColectie} options={ERKADO_REGLAJ.map(r => r.range)} onChange={handleTocReglaj}
+                      optionPrices={erkadoReglajPrices} />
+                  </div>
+                )}
+                {tocBrand === "naturen" && tocShowReglaj && (
+                  <div className="flex-1">
+                    <FieldLabel>Reglaj</FieldLabel>
+                    <Combo value={tocColectie} options={tocAllReglaj} onChange={handleTocReglaj}
+                      optionPrices={tocAllReglajPrices} />
+                  </div>
+                )}
+                {tocFinisajOpts.length > 0 && (
+                  <div className="flex-1">
+                    <FieldLabel>Finisaj toc</FieldLabel>
+                    <Combo value={tocModel} options={tocFinisajOpts} onChange={setTocModel} disabled={!effectiveTocColectie}
+                      optionPrices={tocFinisajPrices} />
+                  </div>
+                )}
+                <PriceBadge price={tocPrice} selected={!!tocBrand} />
+              </>
+            ) : null}
+          </div>
+          {tocFinisaj && tocBrand && tocFinisaj !== "Toc tunel" && (
+            <div>
+              <FieldLabel>Observații toc</FieldLabel>
+              <input
+                value={tocObs}
+                onChange={e => setTocObs(e.target.value)}
+                placeholder="ex: Reglabil 100-120…"
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
+          )}
+          {tocFinisaj && tocBrand && (
+            <div>
+              <FieldLabel>Costuri adiționale</FieldLabel>
+              <div className="flex flex-wrap gap-2">
+                {tocCostVars.map((v, idx) => (
+                  <Combo
+                    key={idx}
+                    value={v}
+                    options={allCostLabels}
+                    onChange={val => handleTocCost(idx, val)}
+                    placeholder="+ cost"
+                    optionPrices={allCostPrices}
+                    onAddOption={handleAddCostOption}
+                    onSetOptionPrice={handleSetCostOptionPrice}
+                    onDeleteOption={handleDeleteCostOption}
+                    isDeletable={label => !costuriLabels.includes(label) || true}
+                    className="min-w-[180px] flex-1"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {(tocFinisaj === "Toc tunel" ? !!tocTunelPrice : !!(tocFinisaj && tocBrand)) && (
+          <div className="mt-4 rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-xs text-indigo-500 font-medium mb-0.5">Total toc curent</p>
+                <p className="text-lg font-bold text-indigo-700">
+                  {effectiveTocPrice ?? 0} EUR
+                  {tocStandaloneQty > 1 && (
+                    <span className="text-sm font-medium text-indigo-400 ml-2">
+                      × {tocStandaloneQty} = {(effectiveTocPrice ?? 0) * tocStandaloneQty} EUR
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 font-medium">Cantitate</span>
+                <div className="flex items-center border border-indigo-200 rounded-lg overflow-hidden bg-white">
+                  <button onClick={() => setTocStandaloneQty(q => Math.max(1, q - 1))}
+                    className="px-2.5 py-1.5 text-indigo-600 hover:bg-indigo-50 transition font-bold text-sm leading-none">−</button>
+                  <span className="px-3 py-1.5 text-sm font-bold text-slate-800 min-w-[2rem] text-center tabular-nums">{tocStandaloneQty}</span>
+                  <button onClick={() => setTocStandaloneQty(q => Math.min(20, q + 1))}
+                    className="px-2.5 py-1.5 text-indigo-600 hover:bg-indigo-50 transition font-bold text-sm leading-none">+</button>
+                </div>
+                <button onClick={resetTocForm}
+                  className="px-3 py-2 text-xs font-medium text-slate-500 border border-slate-300 bg-white rounded-lg hover:bg-slate-50 transition">
+                  Șterge
+                </button>
+                <button
+                  onClick={handleAddTocToCart}
+                  className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 text-sm transition shadow-sm shadow-indigo-500/30"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  {editingToc ? "Salvează toc" : "Adaugă toc la ofertă"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </StepSection>
+
+      {/* ── PASUL 3: Coș (uși + tocuri) ──────────────────── */}
+      {(cartDoors.length > 0 || cartTocs.length > 0) && (
+        <StepSection
+          step={3}
+          title={`Piese adăugate — ${cartDoors.length} uși · ${cartTocs.length} tocuri · total ${cartDoors.reduce((s,d)=>s+(d.qty??1),0) + cartTocs.reduce((s,t)=>s+t.qty,0)} buc`}
+          icon="📋"
+          accent="blue"
+        >
           <div className="space-y-2">
-            {cartDoors.map((d, i) => (
-              <div
-                key={d.id}
-                className="flex items-start justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 gap-3"
-              >
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  {/* Index badge */}
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">
-                      {d.finisaj} — {d.model}
-                      {(d.qty ?? 1) > 1 && (
-                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-xs font-bold">
-                          ×{d.qty}
-                        </span>
-                      )}
-                    </p>
-                    <div className="flex flex-wrap gap-2 mt-0.5">
-                      {d.culoare && <span className="text-xs text-slate-500">{d.culoare}</span>}
-                      {d.deschidere && <span className="text-xs text-slate-500">{d.deschidere}</span>}
-                      {d.addToc && d.tocFinisaj && (
-                        <span className="text-xs text-indigo-500">
-                          + Toc {d.tocFinisaj}{d.tocColectie && d.tocColectie !== "__" ? ` ${d.tocColectie}` : ""}{d.tocModel ? ` — ${d.tocModel}` : ""}
-                        </span>
-                      )}
-                      {d.ferPrice > 0 && <span className="text-xs text-slate-400">+ Feronerie {d.nrBal}</span>}
-                      {d.manPrice > 0 && <span className="text-xs text-slate-400">+ {d.manMod}</span>}
+            {/* ── Doors ── */}
+            {cartDoors.map((d, i) => {
+              const doorColectieOpts = d.finisaj ? Object.keys(doorsData[d.finisaj] ?? {}).sort() : [];
+              const doorModelOpts = (d.finisaj && d.colectie) ? sortModels(Object.keys(doorsData[d.finisaj]?.[d.colectie] ?? {})) : [];
+              const doorCuloriOpts = (d.finisaj && d.colectie) ? (culori[d.finisaj]?.[d.colectie] ?? []) : [];
+              return (
+                <div key={d.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                        U{i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {d.finisaj}
+                          {(d.qty ?? 1) > 1 && (
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-xs font-bold">×{d.qty}</span>
+                          )}
+                        </p>
+                        {/* Inline-editable fields */}
+                        <div className="flex flex-wrap gap-2 mt-1.5 items-center">
+                          {doorColectieOpts.length > 0 && (
+                            <select
+                              value={d.colectie}
+                              onChange={e => handlePatchDoorColectie(d.id, d.finisaj, e.target.value)}
+                              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-indigo-400 cursor-pointer"
+                            >
+                              <option value="">— colecție —</option>
+                              {doorColectieOpts.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          )}
+                          {d.colectie && doorModelOpts.length > 0 && (
+                            <select
+                              value={d.model}
+                              onChange={e => handlePatchDoorModel(d.id, d, e.target.value)}
+                              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-indigo-400 cursor-pointer"
+                            >
+                              <option value="">— model —</option>
+                              {doorModelOpts.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                          )}
+                          {doorCuloriOpts.length > 0 && (
+                            <select
+                              value={d.culoare}
+                              onChange={e => handlePatchDoor(d.id, { culoare: e.target.value })}
+                              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-indigo-400 cursor-pointer"
+                            >
+                              <option value="">— culoare —</option>
+                              {doorCuloriOpts.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          )}
+                          <select
+                            value={d.deschidere}
+                            onChange={e => handlePatchDoor(d.id, { deschidere: e.target.value })}
+                            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-indigo-400 cursor-pointer"
+                          >
+                            <option value="">— dr./stg. —</option>
+                            {DESCHIDERI.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                          {d.ferPrice > 0 && (
+                            <span className="text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-600">
+                              {d.nrBal}× {d.balMod} {d.balCol}
+                            </span>
+                          )}
+                          {d.manPrice > 0 && (
+                            <span className="text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-600">
+                              {d.manMod} {d.manTip}
+                            </span>
+                          )}
+                          {d.costVars.filter(v => v).map(v => (
+                            <span key={v} className="text-xs bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 text-amber-700">
+                              + {v}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden bg-white">
+                        <button onClick={() => handleUpdateQty(d.id, (d.qty ?? 1) - 1)}
+                          className="px-2 py-1 text-slate-500 hover:bg-slate-100 transition text-sm font-bold leading-none">−</button>
+                        <span className="px-2 py-1 text-xs font-bold text-slate-700 min-w-[1.5rem] text-center tabular-nums">{d.qty ?? 1}</span>
+                        <button onClick={() => handleUpdateQty(d.id, (d.qty ?? 1) + 1)}
+                          className="px-2 py-1 text-slate-500 hover:bg-slate-100 transition text-sm font-bold leading-none">+</button>
+                      </div>
+                      <span className="text-sm font-bold text-emerald-600 min-w-[4rem] text-right tabular-nums">
+                        {d.totalEur * (d.qty ?? 1)} EUR
+                      </span>
+                      <button onClick={() => handleEditDoor(d)} title="Editează"
+                        className={`p-1.5 rounded-lg transition ${editingDoor === d.id ? "text-amber-600 bg-amber-50" : "text-slate-400 hover:text-amber-600 hover:bg-amber-50"}`}>
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button onClick={() => handleDuplicateDoor(d)} title="Duplică"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                      <button onClick={() => handleRemoveDoor(d.id)} title="Șterge"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 </div>
+              );
+            })}
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {/* Qty controls */}
-                  <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden bg-white">
-                    <button
-                      onClick={() => handleUpdateQty(d.id, (d.qty ?? 1) - 1)}
-                      className="px-2 py-1 text-slate-500 hover:bg-slate-100 transition text-sm font-bold leading-none"
-                    >−</button>
-                    <span className="px-2 py-1 text-xs font-bold text-slate-700 min-w-[1.5rem] text-center tabular-nums">
-                      {d.qty ?? 1}
-                    </span>
-                    <button
-                      onClick={() => handleUpdateQty(d.id, (d.qty ?? 1) + 1)}
-                      className="px-2 py-1 text-slate-500 hover:bg-slate-100 transition text-sm font-bold leading-none"
-                    >+</button>
+            {/* ── TOCs ── */}
+            {cartTocs.map((t, i) => {
+              const isErkadoItem = t.brand === "erkado";
+              const tocLabel = isErkadoItem
+                ? `Toc Erkado${t.tocFinisaj ? ` ${t.tocFinisaj}` : ""} — Reglaj ${t.erkadoRange}`
+                : t.tocFinisaj === "Toc tunel"
+                  ? "Toc tunel reglabil"
+                  : `Toc ${t.tocFinisaj}${t.tocColectie && t.tocColectie !== "__" ? ` ${t.tocColectie}` : ""}${t.tocModel ? ` — ${t.tocModel}` : ""}`;
+              return (
+                <div key={t.id} className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-200 text-xs font-bold text-indigo-700">
+                        T{i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{tocLabel}</p>
+                        <div className="flex flex-wrap gap-1.5 mt-1 items-center">
+                          {t.obs && <span className="text-xs text-slate-500">{t.obs}</span>}
+                          {(t.costVars ?? []).filter(v => v).map(v => (
+                            <span key={v} className="text-xs bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 text-amber-700">
+                              + {v}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden bg-white">
+                        <button onClick={() => handleUpdateTocQty(t.id, t.qty - 1)}
+                          className="px-2 py-1 text-slate-500 hover:bg-slate-100 transition text-sm font-bold leading-none">−</button>
+                        <span className="px-2 py-1 text-xs font-bold text-slate-700 min-w-[1.5rem] text-center tabular-nums">{t.qty}</span>
+                        <button onClick={() => handleUpdateTocQty(t.id, t.qty + 1)}
+                          className="px-2 py-1 text-slate-500 hover:bg-slate-100 transition text-sm font-bold leading-none">+</button>
+                      </div>
+                      <span className="text-sm font-bold text-emerald-600 min-w-[4rem] text-right tabular-nums">
+                        {t.totalEur * t.qty} EUR
+                      </span>
+                      <button onClick={() => handleEditToc(t)} title="Editează"
+                        className={`p-1.5 rounded-lg transition ${editingToc === t.id ? "text-amber-600 bg-amber-50" : "text-slate-400 hover:text-amber-600 hover:bg-amber-50"}`}>
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button onClick={() => handleDuplicateToc(t)} title="Duplică"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                      <button onClick={() => handleRemoveToc(t.id)} title="Șterge"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-
-                  <span className="text-sm font-bold text-emerald-600 min-w-[4rem] text-right tabular-nums">
-                    {d.totalEur * (d.qty ?? 1)} EUR
-                  </span>
-
-                  {/* Duplicate */}
-                  <button
-                    onClick={() => handleDuplicateDoor(d)}
-                    title="Duplică"
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </button>
-
-                  {/* Remove */}
-                  <button
-                    onClick={() => handleRemoveDoor(d.id)}
-                    title="Șterge"
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          <div className="mt-3 flex justify-end items-center gap-4">
+          <div className="mt-3 flex justify-end items-center gap-6">
             <div className="text-right">
               <p className="text-xs text-slate-400">Subtotal coș</p>
               <p className="text-xl font-bold text-emerald-700">{cartTotal} EUR</p>
@@ -1212,8 +1612,8 @@ export default function Configurator() {
         </StepSection>
       )}
 
-      {/* ── PASUL 3: Detalii ofertă ───────────────────────── */}
-      <StepSection step={cartDoors.length > 0 ? 3 : 2} title="Detalii Ofertă & Client" icon="📄" accent="slate">
+      {/* ── PASUL 4: Detalii ofertă ───────────────────────── */}
+      <StepSection step={(cartDoors.length > 0 || cartTocs.length > 0) ? 4 : 3} title="Detalii Ofertă & Client" icon="📄" accent="slate">
         <div className="grid grid-cols-3 gap-3 mb-4">
           <Input label="Nr. Ofertă" value={offerNumber} onChange={setOfferNumber} placeholder="ex: 2723" />
           <Input label="Data Ofertei" value={offerDate} onChange={setOfferDate} placeholder="01.01.2025" />
@@ -1248,7 +1648,7 @@ export default function Configurator() {
         <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-              Total ofertă · {totalDoors} {totalDoors === 1 ? "ușă" : "uși"}
+              Total ofertă · {cartDoors.reduce((s,d)=>s+(d.qty??1),0) + cartTocs.reduce((s,t)=>s+t.qty,0) + (usaPrice !== null ? currentQty : 0)} piese
             </span>
             <button
               onClick={handleFullReset}

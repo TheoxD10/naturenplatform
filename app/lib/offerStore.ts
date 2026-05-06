@@ -1,3 +1,22 @@
+export interface TocLineItem {
+  id: string;
+  brand: "naturen" | "erkado";
+  // Naturen flow
+  tocFinisaj: string;
+  tocColectie: string;
+  tocModel: string;
+  // Erkado flow
+  erkadoRange: string;
+  erkadoCollection: string;
+  // Common
+  obs: string;
+  tocPrice: number;
+  costVars?: string[];
+  costCustomPrices?: Record<string, number>;
+  qty: number;
+  totalEur: number;
+}
+
 export interface DoorLineItem {
   id: string;
   // Door
@@ -51,6 +70,7 @@ export interface SavedOrder {
   buyerName: string;
   buyerPhone: string;
   doors: DoorLineItem[];
+  tocs?: TocLineItem[];
 }
 
 const KEY = "naturen_orders_v2";

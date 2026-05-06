@@ -24,7 +24,14 @@
       "PowerShell(python --version; python3 --version 2>&1)",
       "Bash(Get-ChildItem -Force)",
       "Bash(findstr \"PROJECT_ID\")",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\" -Recurse -Depth 2)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\" -Recurse -Depth 2 | Select-Object FullName | ForEach-Object { $_.FullName })",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\app\" -Directory)",
+      "Bash(Select-Object Name)",
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\app\\\\components\\\\Configurator.tsx\" | Measure-Object -Line\\).Lines)",
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\app\\\\data\\\\constants.ts\" | Measure-Object -Line\\).Lines)"
     ]
   }
 }

@@ -357,6 +357,27 @@ export const DESCHIDERI = ["Stanga", "Dreapta"];
 export const DIM_LATIMI = ["600", "700", "800", "900", "1000"];
 // Standard door leaf heights (mm)
 export const DIM_INALTIMI = ["2000", "2100"];
+
+export const ERKADO_REGLAJ: { range: string; priceEur: number }[] = [
+  { range: "80 - 100",   priceEur: 204 },
+  { range: "100 - 120",  priceEur: 206 },
+  { range: "120 - 140",  priceEur: 212 },
+  { range: "140 - 160",  priceEur: 217 },
+  { range: "160 - 180",  priceEur: 227 },
+  { range: "180 - 200",  priceEur: 229 },
+  { range: "200 - 220",  priceEur: 235 },
+  { range: "220 - 240",  priceEur: 240 },
+  { range: "240 - 260",  priceEur: 246 },
+  { range: "260 - 280",  priceEur: 252 },
+  { range: "280 - 300",  priceEur: 263 },
+  { range: "300 - 340",  priceEur: 269 },
+  { range: "340 - 360",  priceEur: 290 },
+  { range: "360 - 380",  priceEur: 296 },
+  { range: "380 - 400",  priceEur: 308 },
+  { range: "400 - 420",  priceEur: 314 },
+];
+
+export const ERKADO_COLLECTIONS = ["CPL", "Premium", "Greko"];
 // Standard wall thicknesses (mm)
 export const DIM_GROSIMI_PERETE = ["100", "115", "120", "125", "150", "175", "200", "250", "300", "350"];
 // Reglaj toc ranges based on wall thickness
