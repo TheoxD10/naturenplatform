@@ -60,5 +60,20 @@ service cloud.firestore {
     match /tasks/{taskId} {
       allow read, write: if isAuth();
     }
+
+    // Configurator options (feronerie, manere, costuri, culori, door_custom)
+    match /configurator_options/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    // Offers (auto-saved quotations)
+    match /offers/{offerId} {
+      allow read, write: if isAuth();
+    }
+
+    // Global settings (EUR rate etc.)
+    match /settings/{docId} {
+      allow read, write: if isAuth();
+    }
   }
 }

@@ -4,23 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import {
   FINISAJ_ORDER,
   NONE_OPT,
-  FERONERIE,
-  BAL_MODELS,
-  BAL_CULORI,
-  MANERE_MODELS,
-  MANERE_TIPS,
-  COSTURI,
-  COSTURI_LABELS,
-  COSTURI_MAP,
-  CULORI_PER_COLECTIE,
   DESCHIDERI,
-  getManereColLabels,
-  manerePriceFromLabel,
 } from "../data/constants";
+import { useConfiguratorOptions } from "../hooks/useConfiguratorOptions";
 import { generateOfferPdf, type OfferItem } from "../lib/generatePdf";
 import { upsertOrder, type DoorLineItem } from "../lib/offerStore";
 import { db } from "../../lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DoorsData = Record<string, any>;
@@ -36,13 +26,15 @@ function sortModels(models: string[]) {
 
 function Combo({
   value, options, onChange, placeholder = "— selectează —", disabled, className = "",
-  optionPrices, onAddOption, onSetOptionPrice,
+  optionPrices, onAddOption, onSetOptionPrice, onDeleteOption, isDeletable,
 }: {
   value: string; options: string[]; onChange: (v: string) => void;
   placeholder?: string; disabled?: boolean; className?: string;
   optionPrices?: Record<string, number | null>;
   onAddOption?: (label: string, price: number | null) => void;
   onSetOptionPrice?: (label: string, price: number) => void;
+  onDeleteOption?: (label: string) => void;
+  isDeletable?: (label: string) => boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -52,6 +44,7 @@ function Combo({
   const [editingPriceFor, setEditingPriceFor] = useState<string | null>(null);
   const [editingPriceVal, setEditingPriceVal] = useState("");
   const [localExtras, setLocalExtras] = useState<{ label: string; price: number | null }[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -172,13 +165,13 @@ function Combo({
                     onChange={e => setNewLabel(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") submitAdd(); if (e.key === "Escape") setAddMode(false); }}
                     placeholder="Denumire…"
-                    className="flex-1 rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-indigo-400"
+                    className="flex-1 rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-400"
                   />
                   <input
                     value={newPrice}
                     onChange={e => setNewPrice(e.target.value)}
                     type="number" min="0" placeholder="EUR (opt.)"
-                    className="w-20 rounded-lg border border-indigo-200 bg-white px-2 py-1.5 text-xs outline-none text-center"
+                    className="w-20 rounded-lg border border-indigo-200 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none text-center"
                   />
                   <button
                     onClick={() => submitAdd()}
@@ -203,6 +196,23 @@ function Combo({
                 const price = allPrices[o];
                 const sel = o === value;
                 const isEditingThis = editingPriceFor === o;
+                const isConfirmingDelete = confirmDelete === o;
+
+                if (isConfirmingDelete) {
+                  return (
+                    <div key={o} className="flex items-center gap-2 px-3 py-2 bg-red-50 border-b border-red-100">
+                      <span className="flex-1 text-xs text-red-700 font-medium truncate">Șterge &ldquo;{o}&rdquo;?</span>
+                      <button
+                        onClick={() => { onDeleteOption?.(o); setConfirmDelete(null); setOpen(false); }}
+                        className="px-2.5 py-1 rounded bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition"
+                      >Da</button>
+                      <button
+                        onClick={() => setConfirmDelete(null)}
+                        className="px-2.5 py-1 rounded bg-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-300 transition"
+                      >Nu</button>
+                    </div>
+                  );
+                }
 
                 if (isEditingThis) {
                   return (
@@ -217,7 +227,7 @@ function Combo({
                           if (e.key === "Enter") { e.preventDefault(); submitPriceEdit(o); }
                           if (e.key === "Escape") { setEditingPriceFor(null); setEditingPriceVal(""); }
                         }}
-                        className="w-20 rounded border border-amber-300 bg-white px-2 py-1 text-xs text-center outline-none"
+                        className="w-20 rounded border border-amber-300 bg-white px-2 py-1 text-xs text-slate-900 text-center outline-none"
                       />
                       <button
                         onClick={() => submitPriceEdit(o)}
@@ -235,7 +245,7 @@ function Combo({
                   <div
                     key={o}
                     onClick={() => select(o)}
-                    className={`flex items-center justify-between px-4 py-2.5 cursor-pointer text-sm transition ${
+                    className={`group flex items-center justify-between px-4 py-2.5 cursor-pointer text-sm transition ${
                       sel ? "bg-indigo-50 text-indigo-700 font-medium" : "text-slate-700 hover:bg-slate-50"
                     }`}
                   >
@@ -254,6 +264,17 @@ function Combo({
                         className="ml-2 text-xs text-amber-500 hover:text-amber-700 font-medium shrink-0 italic underline-offset-2 underline"
                       >
                         adaugă preț
+                      </button>
+                    )}
+                    {onDeleteOption && (!isDeletable || isDeletable(o)) && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setConfirmDelete(o); }}
+                        className="opacity-0 group-hover:opacity-100 ml-1.5 p-0.5 rounded text-slate-300 hover:text-red-500 transition shrink-0"
+                        title="Șterge"
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                       </button>
                     )}
                   </div>
@@ -351,8 +372,25 @@ function Divider({ label }: { label: string }) {
 }
 
 export default function Configurator() {
+  const {
+    loading: optionsLoading,
+    ferMap, balModels, balCulori,
+    manereModels, manereTips,
+    getManereColLabels, manerePriceFromLabel,
+    costuriLabels, costuriMap,
+    culori,
+    doorPriceOverrides,
+    upsertCosturiItem,
+    updateDoorPriceOverride,
+    deleteCosturiItem,
+    deleteDoorPriceOverride,
+    euroCourse,
+    updateEuroCourse,
+  } = useConfiguratorOptions();
+
   const [doorsData, setDoorsData] = useState<DoorsData>({});
-  const [loading, setLoading] = useState(true);
+  const [doorsLoading, setDoorsLoading] = useState(true);
+  const loading = doorsLoading || optionsLoading;
 
   // ── Current door form ──────────────────────────────────────
   const [finisaj, setFinisaj]     = useState("");
@@ -378,17 +416,13 @@ export default function Configurator() {
   const [manCol, setManCol]       = useState("");
 
   const [costVars, setCostVars]   = useState<string[]>([""]);
-  // Custom prices for variable-price cost items (label → EUR)
+  // Per-session prices for variable-price cost items (label → EUR)
   const [costCustomPrices, setCostCustomPrices] = useState<Record<string, string>>({});
-  // Extra cost options added via "Adaugă opțiune"
-  const [customCostOptions, setCustomCostOptions] = useState<{label: string; price: number | null}[]>([]);
 
   // Toc tunel manual pricing
   const [tocTunelPrice, setTocTunelPrice]       = useState("");
   const [tocTunelFaraFalt, setTocTunelFaraFalt] = useState(false);
 
-  // Custom price overrides for options without API price (e.g. INNOVA placeholder)
-  const [customModelPrices, setCustomModelPrices] = useState<Record<string, number>>({});
 
   // ── Stable offer document ID for Firestore auto-save ──────
   const [offerId] = useState(() => `offer-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -411,25 +445,13 @@ export default function Configurator() {
   useEffect(() => {
     fetch("/api/data")
       .then((r) => r.json())
-      .then((d) => { setDoorsData(d); setLoading(false); });
+      .then((d) => { setDoorsData(d); setDoorsLoading(false); });
   }, []);
 
-  // Read EUR rate from Firebase on mount
+  // Sync EUR rate from hook once loaded
   useEffect(() => {
-    getDoc(doc(db, "settings", "global")).then(snap => {
-      if (snap.exists()) {
-        const r = snap.data().eurRate;
-        if (r) setExchangeRate(String(r));
-      }
-    }).catch(() => {});
-  }, []);
-
-  function saveEurRate(rate: string) {
-    const n = parseFloat(rate);
-    if (!isNaN(n) && n > 0) {
-      setDoc(doc(db, "settings", "global"), { eurRate: n }, { merge: true }).catch(() => {});
-    }
-  }
+    if (euroCourse !== null) setExchangeRate(String(euroCourse));
+  }, [euroCourse]);
 
   // ── Cascades ──────────────────────────────────────────────
   const finisajOpts = (() => {
@@ -438,10 +460,16 @@ export default function Configurator() {
   })();
   const colectieOpts = finisaj ? Object.keys(doorsData[finisaj] ?? {}).sort() : [];
   const culoriOpts   = (finisaj && colectie)
-    ? (CULORI_PER_COLECTIE[finisaj]?.[colectie] ?? [])
+    ? (culori[finisaj]?.[colectie] ?? [])
     : [];
   const modelOpts    = (finisaj && colectie)
-    ? sortModels(Object.keys(doorsData[finisaj]?.[colectie] ?? {}))
+    ? sortModels([
+        ...Object.keys(doorsData[finisaj]?.[colectie] ?? {}),
+        ...Object.keys(doorPriceOverrides)
+          .filter(k => k.startsWith(`${finisaj}|${colectie}|`))
+          .map(k => k.slice(`${finisaj}|${colectie}|`.length))
+          .filter(m => !(m in (doorsData[finisaj]?.[colectie] ?? {}))),
+      ])
     : [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -458,12 +486,11 @@ export default function Configurator() {
     ? Object.keys(tocV2[tocFinisaj]?.[effectiveTocColectie] ?? {})
     : [];
 
-  // ── All cost options (standard + custom) ─────────────────
-  const allCostLabels = [...COSTURI_LABELS, ...customCostOptions.map(o => o.label)];
+  // ── All cost options (from Firestore) ────────────────────
+  const allCostLabels = costuriLabels;
   const allCostPrices: Record<string, number | null> = {
-    ...Object.fromEntries(COSTURI),
-    ...Object.fromEntries(customCostOptions.map(o => [o.label, o.price])),
-    // Merge user-entered custom prices so set prices show correctly in dropdown
+    ...costuriMap,
+    // Merge per-session custom prices so edited prices show correctly in dropdown
     ...Object.fromEntries(
       Object.entries(costCustomPrices).map(([k, v]) => [k, parseFloat(v) || null])
     ),
@@ -473,7 +500,7 @@ export default function Configurator() {
   const modelPrices: Record<string, number | null> = Object.fromEntries(
     modelOpts.map(m => {
       const overrideKey = `${finisaj}|${colectie}|${m}`;
-      return [m, customModelPrices[overrideKey] ?? (doorsData[finisaj]?.[colectie]?.[m] ?? null)];
+      return [m, doorPriceOverrides[overrideKey] ?? (doorsData[finisaj]?.[colectie]?.[m] ?? null)];
     })
   );
   const tocAllReglajPrices: Record<string, number | null> = Object.fromEntries(
@@ -488,7 +515,7 @@ export default function Configurator() {
 
   // ── Current door prices ────────────────────────────────────
   const usaPrice = (finisaj && colectie && model)
-    ? (customModelPrices[`${finisaj}|${colectie}|${model}`] ?? doorsData[finisaj]?.[colectie]?.[model] ?? null)
+    ? (doorPriceOverrides[`${finisaj}|${colectie}|${model}`] ?? doorsData[finisaj]?.[colectie]?.[model] ?? null)
     : null;
   const tocPrice  = (tocFinisaj && tocFinisaj !== "Toc tunel" && effectiveTocColectie && tocModel)
     ? (tocV2[tocFinisaj]?.[effectiveTocColectie]?.[tocModel] ?? null)
@@ -497,7 +524,7 @@ export default function Configurator() {
     ? (parseFloat(tocTunelPrice) || null)
     : tocPrice;
   const ferPrice  = (nrBal && balMod && balCol)
-    ? (FERONERIE[`${nrBal.startsWith("2") ? "2" : "3"}|${balMod}|${balCol}`] ?? null)
+    ? (ferMap[`${nrBal.startsWith("2") ? "2" : "3"}|${balMod}|${balCol}`] ?? null)
     : null;
   const manColOpts    = (manMod && manTip) ? getManereColLabels(manMod, manTip) : [];
   const hasRealColors = manColOpts.some((l) => l.includes("–"));
@@ -588,18 +615,28 @@ export default function Configurator() {
   }
 
   function handleAddCostOption(label: string, price: number | null) {
-    setCustomCostOptions(prev => prev.some(o => o.label === label) ? prev : [...prev, {label, price}]);
+    upsertCosturiItem(label, price);
     if (price !== null) setCostCustomPrices(p => ({...p, [label]: String(price)}));
   }
   function handleSetCostOptionPrice(label: string, price: number) {
+    upsertCosturiItem(label, price);
     setCostCustomPrices(p => ({...p, [label]: String(price)}));
   }
   function handleSetModelPrice(modelName: string, price: number) {
     const key = `${finisaj}|${colectie}|${modelName}`;
-    setCustomModelPrices(p => ({...p, [key]: price}));
+    updateDoorPriceOverride(key, price);
   }
   function handleAddModelOption(label: string, price: number | null) {
     if (price !== null) handleSetModelPrice(label, price);
+  }
+  function handleDeleteCostOption(label: string) {
+    deleteCosturiItem(label);
+    setCostVars(prev => prev.map(v => v === label ? "" : v));
+  }
+  function handleDeleteModelOption(modelName: string) {
+    const key = `${finisaj}|${colectie}|${modelName}`;
+    deleteDoorPriceOverride(key);
+    if (model === modelName) setModel("");
   }
   function handleTocReglaj(v: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -756,7 +793,7 @@ export default function Configurator() {
         });
       }
       for (const v of d.costVars) {
-        const fixedP = COSTURI_MAP[v];
+        const fixedP = costuriMap[v];
         const p = typeof fixedP === "number" ? fixedP : (d.costCustomPrices?.[v] ?? null);
         if (typeof p === "number" && p > 0) {
           items.push({ name: v, um: "serviciu", qty: q, priceRon: p * rate });
@@ -846,7 +883,9 @@ export default function Configurator() {
           <div>
             <FieldLabel>Model</FieldLabel>
             <Combo value={model} options={modelOpts} onChange={handleModel} disabled={!colectie}
-              optionPrices={modelPrices} onAddOption={handleAddModelOption} onSetOptionPrice={handleSetModelPrice} />
+              optionPrices={modelPrices} onAddOption={handleAddModelOption} onSetOptionPrice={handleSetModelPrice}
+              onDeleteOption={handleDeleteModelOption}
+              isDeletable={m => `${finisaj}|${colectie}|${m}` in doorPriceOverrides} />
           </div>
           <PriceBadge price={usaPrice} selected={!!model} />
         </div>
@@ -958,22 +997,22 @@ export default function Configurator() {
           </div>
           <div>
             <FieldLabel>Tip balama</FieldLabel>
-            <Combo value={balMod} options={nrBal ? BAL_MODELS : []} onChange={handleBalMod} disabled={!nrBal} />
+            <Combo value={balMod} options={nrBal ? balModels : []} onChange={handleBalMod} disabled={!nrBal} />
           </div>
           <div>
             <FieldLabel>Culoare balama</FieldLabel>
-            <Combo value={balCol} options={balMod ? BAL_CULORI : []} onChange={handleBalCol} disabled={!balMod} />
+            <Combo value={balCol} options={balMod ? balCulori : []} onChange={handleBalCol} disabled={!balMod} />
           </div>
           <PriceBadge price={ferPrice} />
         </div>
         <div className="grid grid-cols-[1fr_1fr_1.5fr_auto] gap-2 items-end">
           <div>
             <FieldLabel>Model mâner</FieldLabel>
-            <Combo value={manMod} options={MANERE_MODELS} onChange={handleManMod} />
+            <Combo value={manMod} options={manereModels} onChange={handleManMod} />
           </div>
           <div>
             <FieldLabel>Tip mâner</FieldLabel>
-            <Combo value={manTip} options={manMod ? MANERE_TIPS[manMod] ?? [] : []} onChange={handleManTip} disabled={!manMod} />
+            <Combo value={manTip} options={manMod ? manereTips[manMod] ?? [] : []} onChange={handleManTip} disabled={!manMod} />
           </div>
           <div>
             <FieldLabel>Culoare / variantă</FieldLabel>
@@ -1004,6 +1043,7 @@ export default function Configurator() {
                   optionPrices={allCostPrices}
                   onAddOption={handleAddCostOption}
                   onSetOptionPrice={handleSetCostOptionPrice}
+                  onDeleteOption={handleDeleteCostOption}
                 />
               </div>
               {isVariable ? (
@@ -1177,7 +1217,7 @@ export default function Configurator() {
         <div className="grid grid-cols-3 gap-3 mb-4">
           <Input label="Nr. Ofertă" value={offerNumber} onChange={setOfferNumber} placeholder="ex: 2723" />
           <Input label="Data Ofertei" value={offerDate} onChange={setOfferDate} placeholder="01.01.2025" />
-          <Input label="Curs EUR/RON" value={exchangeRate} onChange={setExchangeRate} onBlur={() => saveEurRate(exchangeRate)} placeholder="4.97" type="number" />
+          <Input label="Curs EUR/RON" value={exchangeRate} onChange={setExchangeRate} onBlur={() => { const n = parseFloat(exchangeRate); if (!isNaN(n) && n > 0) updateEuroCourse(n); }} placeholder="4.97" type="number" />
         </div>
         <div className="grid grid-cols-3 gap-3 mb-4">
           <Input label="Nume Cumpărător" value={buyerName} onChange={setBuyerName} placeholder="Popescu Flavia" />

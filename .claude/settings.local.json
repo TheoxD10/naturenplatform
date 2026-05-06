@@ -21,7 +21,10 @@
       "Bash(npm run *)",
       "Bash(python -c ' *)",
       "Bash(python3 -c ' *)",
-      "PowerShell(python --version; python3 --version 2>&1)"
+      "PowerShell(python --version; python3 --version 2>&1)",
+      "Bash(Get-ChildItem -Force)",
+      "Bash(findstr \"PROJECT_ID\")",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }
