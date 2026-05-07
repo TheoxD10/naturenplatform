@@ -6,6 +6,9 @@ import {
   NONE_OPT,
   DESCHIDERI,
   ERKADO_REGLAJ,
+  ERKADO_TOC_TUNEL,
+  ERKADO_TOC_TUNEL_FINISAJE,
+  type ErkadoTocTunelFinisaj,
   BROASCA_TIPURI_HW,
   BROASCA_DIMENSIUNI,
   BROASCA_CULORI_HW,
@@ -14,7 +17,7 @@ import {
 } from "../data/constants";
 import { useConfiguratorOptions } from "../hooks/useConfiguratorOptions";
 import { generateOfferPdf, type OfferItem } from "../lib/generatePdf";
-import { upsertOrder, type DoorLineItem, type TocLineItem } from "../lib/offerStore";
+import { upsertOrder, type DoorLineItem, type TocLineItem, type MontajEntry } from "../lib/offerStore";
 import { db } from "../../lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
 
@@ -377,6 +380,71 @@ function Divider({ label }: { label: string }) {
   );
 }
 
+function MontajSection({ montaj, onChange }: { montaj: MontajEntry[]; onChange: (m: MontajEntry[]) => void }) {
+  function addRow() { onChange([...montaj, { name: "", qty: 1, priceRon: 0 }]); }
+  function removeRow(i: number) { onChange(montaj.filter((_, idx) => idx !== i)); }
+  function updateRow(i: number, patch: Partial<MontajEntry>) {
+    onChange(montaj.map((m, idx) => idx === i ? { ...m, ...patch } : m));
+  }
+  return (
+    <div className="space-y-2">
+      {montaj.length === 0 ? (
+        <button
+          onClick={addRow}
+          className="text-xs text-slate-400 hover:text-indigo-600 border border-dashed border-slate-300 rounded-lg px-3 py-2 w-full text-center transition"
+        >
+          + Adaugă intrare montaj
+        </button>
+      ) : (
+        <>
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center mb-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Denumire</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 w-14 text-center">Buc.</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 w-20 text-center">Preț RON</span>
+            <span className="w-6" />
+          </div>
+          {montaj.map((m, i) => (
+            <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
+              <input
+                type="text" placeholder="Denumire serviciu"
+                value={m.name}
+                onChange={e => updateRow(i, { name: e.target.value })}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              />
+              <input
+                type="number" min="1" placeholder="1"
+                value={m.qty || ""}
+                onChange={e => updateRow(i, { qty: parseInt(e.target.value) || 1 })}
+                className="w-14 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              />
+              <input
+                type="number" min="0" step="0.01" placeholder="0"
+                value={m.priceRon || ""}
+                onChange={e => updateRow(i, { priceRon: parseFloat(e.target.value) || 0 })}
+                className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              />
+              <button onClick={() => removeRow(i)} className="text-slate-400 hover:text-red-500 transition w-6 flex justify-center">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={addRow}
+            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 mt-1"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Adaugă
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Configurator() {
   const {
     loading: optionsLoading,
@@ -434,9 +502,23 @@ export default function Configurator() {
   // Per-session prices for variable-price cost items (label → EUR)
   const [costCustomPrices, setCostCustomPrices] = useState<Record<string, string>>({});
 
-  // Toc tunel manual pricing
+  // Toc tunel manual pricing (Naturen)
   const [tocTunelPrice, setTocTunelPrice]       = useState("");
   const [tocTunelFaraFalt, setTocTunelFaraFalt] = useState(false);
+  // Toc tunel brand/erkado selection
+  const [tocTunelBrand, setTocTunelBrand]             = useState<"" | "naturen" | "erkado">("");
+  const [tocTunelErkadoReglaj, setTocTunelErkadoReglaj] = useState("");
+  const [tocTunelErkadoFinisaj, setTocTunelErkadoFinisaj] = useState<ErkadoTocTunelFinisaj | "">("");
+  const [tocTunelDubla, setTocTunelDubla]             = useState(false);
+
+  // Montaj entries
+  const [usaMontaj, setUsaMontaj] = useState<MontajEntry[]>([]);
+  const [tocMontaj, setTocMontaj] = useState<MontajEntry[]>([]);
+
+  // Atipic door
+  const [isAtipic, setIsAtipic]               = useState(false);
+  const [atipicDesc, setAtipicDesc]           = useState("");
+  const [atipicManualPrice, setAtipicManualPrice] = useState("");
 
 
   // ── Stable offer document ID for Firestore auto-save ──────
@@ -547,9 +629,31 @@ export default function Configurator() {
     : (tocFinisaj && tocFinisaj !== "Toc tunel" && effectiveTocColectie && tocModel)
     ? (tocV2[tocFinisaj]?.[effectiveTocColectie]?.[tocModel] ?? null)
     : null;
+  // Erkado toc tunel price lookup
+  const erkadoTocTunelEntry = (tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado" && tocTunelErkadoReglaj)
+    ? ERKADO_TOC_TUNEL.find(e => e.range === tocTunelErkadoReglaj) ?? null
+    : null;
+  const erkadoTocTunelBasePrice: number | null = (erkadoTocTunelEntry && tocTunelErkadoFinisaj)
+    ? (erkadoTocTunelEntry[tocTunelErkadoFinisaj as keyof typeof erkadoTocTunelEntry] as number ?? null)
+    : null;
+  const erkadoTocTunelReglajPrices: Record<string, number | null> = Object.fromEntries(
+    ERKADO_TOC_TUNEL.map(e => [e.range, tocTunelErkadoFinisaj ? (e[tocTunelErkadoFinisaj as keyof typeof e] as number ?? null) : null])
+  );
+  const erkadoTocTunelFinisajPrices: Record<string, number | null> = erkadoTocTunelEntry
+    ? Object.fromEntries(ERKADO_TOC_TUNEL_FINISAJE.map(f => [f, erkadoTocTunelEntry[f as keyof typeof erkadoTocTunelEntry] as number ?? null]))
+    : {};
+
+  const tocTunelNatuurenBase = tocTunelBrand === "naturen" ? (parseFloat(tocTunelPrice) || null) : null;
+  const tocTunelBasePrice = tocFinisaj === "Toc tunel"
+    ? (tocTunelBrand === "erkado" ? erkadoTocTunelBasePrice : tocTunelNatuurenBase)
+    : null;
   const effectiveTocPrice = tocFinisaj === "Toc tunel"
-    ? (parseFloat(tocTunelPrice) || null)
+    ? (tocTunelBasePrice !== null ? Math.round(tocTunelBasePrice * (tocTunelDubla ? 1.3 : 1) * 100) / 100 : null)
     : tocPrice;
+
+  // Atipic effective price
+  const effectiveUsaPrice = isAtipic ? (parseFloat(atipicManualPrice) || 0) : (usaPrice ?? 0);
+
   const ferPrice  = (nrBal && balMod && balCol)
     ? (ferMap[`${nrBal.startsWith("2") ? "2" : "3"}|${balMod}|${balCol}`] ?? null)
     : null;
@@ -582,7 +686,7 @@ export default function Configurator() {
     });
 
   const currentDoorUnitTotal =
-    (usaPrice ?? 0) +
+    effectiveUsaPrice +
     (ferPrice ?? 0) +
     (manPrice ?? 0) +
     currentCostParts.reduce((s, p) => s + p, 0);
@@ -607,12 +711,16 @@ export default function Configurator() {
     setCurrentQty(1);
     setEditingDoor(null);
     resetHw();
+    setIsAtipic(false); setAtipicDesc(""); setAtipicManualPrice("");
+    setUsaMontaj([]);
   }
   function resetTocForm() {
     setTocFinisaj(""); setTocBrand(""); setTocColectie(""); setTocModel(""); setTocObs("");
     setTocStandaloneQty(1);
     setTocTunelPrice(""); setTocTunelFaraFalt(false);
+    setTocTunelBrand(""); setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false);
     setTocCostVars([""]); setTocCostCustomPrices({});
+    setTocMontaj([]);
     setEditingToc(null);
   }
 
@@ -649,7 +757,8 @@ export default function Configurator() {
   }
   function handleTocTip(v: string) {
     setTocTunelPrice(""); setTocTunelFaraFalt(false);
-    if (v === "Toc tunel") { setTocFinisaj(v); setTocColectie(""); setTocModel(""); return; }
+    setTocTunelBrand(""); setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false);
+    if (v === "Toc tunel") { setTocFinisaj(v); setTocColectie(""); setTocModel(""); setTocBrand(""); return; }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toc = (doorsData["TOC_V2"] ?? {}) as Record<string, Record<string, Record<string, any>>>;
     const allR = Object.keys(toc[v] ?? {}).filter((k) => k !== "__");
@@ -730,7 +839,8 @@ export default function Configurator() {
 
   // ── Cart actions ───────────────────────────────────────────
   function handleAddDoor() {
-    if (usaPrice === null) return;
+    if (isAtipic && !atipicDesc.trim()) return;
+    if (!isAtipic && usaPrice === null) return;
     const activeCostVars = costVars.filter(v => v && v !== NONE_OPT);
     const savedCustomPrices: Record<string, number> = {};
     for (const v of activeCostVars) {
@@ -738,12 +848,20 @@ export default function Configurator() {
       if (!isNaN(p) && p > 0) savedCustomPrices[v] = p;
     }
 
+    const activeMontaj = usaMontaj.filter(m => m.name.trim() || m.priceRon > 0);
     if (editingDoor) {
       const original = cartDoors.find(d => d.id === editingDoor);
       const updated: DoorLineItem = {
         id: editingDoor,
-        finisaj, colectie, model, culoare, deschidere, usaObs,
-        usaPrice: usaPrice ?? 0,
+        finisaj: isAtipic ? "" : finisaj,
+        colectie: isAtipic ? "" : colectie,
+        model: isAtipic ? "" : model,
+        culoare: isAtipic ? "" : culoare,
+        deschidere, usaObs,
+        usaPrice: effectiveUsaPrice,
+        isAtipic: isAtipic || undefined,
+        atipicDesc: isAtipic ? atipicDesc : undefined,
+        montaj: activeMontaj.length > 0 ? activeMontaj : undefined,
         addToc: false, tocFinisaj: "", tocColectie: "", tocModel: "", tocObs: "", tocPrice: 0,
         nrBal, balMod, balCol, balDim, ferPrice: ferPrice ?? 0,
         broascaTip, broascaDim, broascaCuloare,
@@ -773,8 +891,15 @@ export default function Configurator() {
 
     const door: DoorLineItem = {
       id: `door-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      finisaj, colectie, model, culoare, deschidere, usaObs,
-      usaPrice: usaPrice ?? 0,
+      finisaj: isAtipic ? "" : finisaj,
+      colectie: isAtipic ? "" : colectie,
+      model: isAtipic ? "" : model,
+      culoare: isAtipic ? "" : culoare,
+      deschidere, usaObs,
+      usaPrice: effectiveUsaPrice,
+      isAtipic: isAtipic || undefined,
+      atipicDesc: isAtipic ? atipicDesc : undefined,
+      montaj: activeMontaj.length > 0 ? activeMontaj : undefined,
       addToc: false,
       tocFinisaj: "", tocColectie: "", tocModel: "",
       tocObs: "", tocPrice: 0,
@@ -856,17 +981,26 @@ export default function Configurator() {
       const cp = parseFloat(tocCostCustomPrices[v] ?? "0");
       return s + (isNaN(cp) ? 0 : cp);
     }, 0);
+    const activeMontaj = tocMontaj.filter(m => m.name.trim() || m.priceRon > 0);
 
     const makeItem = (id: string): TocLineItem => ({
       id,
-      brand: isErkado ? "erkado" : "naturen",
+      brand: tocFinisaj === "Toc tunel"
+        ? (tocTunelBrand as "naturen" | "erkado" || "naturen")
+        : (isErkado ? "erkado" : "naturen"),
       tocFinisaj, tocColectie, tocModel,
-      erkadoRange: erkadoRangeVal,
-      erkadoCollection: "",
-      obs: tocFinisaj === "Toc tunel" && tocTunelFaraFalt ? "Toc reglabil fara falt" : tocObs,
+      erkadoRange: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado" ? tocTunelErkadoReglaj : erkadoRangeVal,
+      erkadoCollection: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado" ? tocTunelErkadoFinisaj : "",
+      faraFalt: tocFinisaj === "Toc tunel" ? tocTunelFaraFalt : undefined,
+      tunelBrand: tocFinisaj === "Toc tunel" ? (tocTunelBrand || undefined) : undefined,
+      tunelReglaj: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado" ? tocTunelErkadoReglaj : undefined,
+      tunelFinisaj: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado" ? tocTunelErkadoFinisaj : undefined,
+      isDubla: tocTunelDubla || undefined,
+      obs: tocObs,
       tocPrice: tocPriceVal,
       costVars: activeTocCostVars,
       costCustomPrices: savedTocCustomPrices,
+      montaj: activeMontaj.length > 0 ? activeMontaj : undefined,
       qty: tocStandaloneQty,
       totalEur: tocPriceVal + tocCostTotal,
     });
@@ -918,6 +1052,10 @@ export default function Configurator() {
   // ── Edit mode: load a cart item back into its form ────────
   function handleEditDoor(door: DoorLineItem) {
     setEditingDoor(door.id);
+    setIsAtipic(door.isAtipic ?? false);
+    setAtipicDesc(door.atipicDesc ?? "");
+    setAtipicManualPrice(door.isAtipic ? String(door.usaPrice) : "");
+    setUsaMontaj(door.montaj ?? []);
     setFinisaj(door.finisaj);
     setColectie(door.colectie);
     setModel(door.model);
@@ -945,19 +1083,36 @@ export default function Configurator() {
   function handleEditToc(toc: TocLineItem) {
     setEditingToc(toc.id);
     setTocFinisaj(toc.tocFinisaj);
-    setTocBrand(toc.brand === "erkado" ? "erkado" : "naturen");
-    setTocColectie(toc.brand === "erkado" ? toc.erkadoRange : toc.tocColectie);
-    setTocModel(toc.tocModel);
     setTocObs(toc.obs);
     setTocStandaloneQty(toc.qty);
+    setTocMontaj(toc.montaj ?? []);
     const savedCostVars = toc.costVars ?? [];
     setTocCostVars(savedCostVars.length > 0 ? [...savedCostVars, ""] : [""]);
     setTocCostCustomPrices(Object.fromEntries(
       Object.entries(toc.costCustomPrices ?? {}).map(([k, v]) => [k, String(v)])
     ));
     if (toc.tocFinisaj === "Toc tunel") {
-      setTocTunelPrice(String(toc.tocPrice));
-      setTocTunelFaraFalt(toc.obs === "Toc reglabil fara falt");
+      setTocBrand("");
+      setTocColectie("");
+      setTocModel("");
+      const tBrand = toc.tunelBrand ?? (toc.brand === "erkado" ? "erkado" : "naturen");
+      setTocTunelBrand(tBrand);
+      setTocTunelFaraFalt(toc.faraFalt ?? false);
+      setTocTunelDubla(toc.isDubla ?? false);
+      if (tBrand === "erkado") {
+        setTocTunelErkadoReglaj(toc.tunelReglaj ?? toc.erkadoRange ?? "");
+        setTocTunelErkadoFinisaj((toc.tunelFinisaj ?? toc.erkadoCollection ?? "") as ErkadoTocTunelFinisaj | "");
+        setTocTunelPrice("");
+      } else {
+        setTocTunelPrice(String(toc.tocPrice));
+        setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj("");
+      }
+    } else {
+      setTocBrand(toc.brand === "erkado" ? "erkado" : "naturen");
+      setTocColectie(toc.brand === "erkado" ? toc.erkadoRange : toc.tocColectie);
+      setTocModel(toc.tocModel);
+      setTocTunelBrand(""); setTocTunelPrice(""); setTocTunelFaraFalt(false);
+      setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false);
     }
   }
 
@@ -969,10 +1124,18 @@ export default function Configurator() {
       const p = parseFloat(costCustomPrices[v] ?? "");
       if (!isNaN(p) && p > 0) currSavedCustomPrices[v] = p;
     }
-    const currentAsItem: DoorLineItem | null = usaPrice ? {
+    const canIncludeCurrentDoor = isAtipic ? !!atipicDesc.trim() : usaPrice !== null;
+    const currentAsItem: DoorLineItem | null = canIncludeCurrentDoor ? {
       id: `door-current-${Date.now()}`,
-      finisaj, colectie, model, culoare, deschidere, usaObs,
-      usaPrice: usaPrice ?? 0,
+      finisaj: isAtipic ? "" : finisaj,
+      colectie: isAtipic ? "" : colectie,
+      model: isAtipic ? "" : model,
+      culoare: isAtipic ? "" : culoare,
+      deschidere, usaObs,
+      usaPrice: effectiveUsaPrice,
+      isAtipic: isAtipic || undefined,
+      atipicDesc: isAtipic ? atipicDesc : undefined,
+      montaj: usaMontaj.filter(m => m.name.trim() || m.priceRon > 0),
       addToc: false,
       tocFinisaj: "", tocColectie: "", tocModel: "",
       tocObs: "", tocPrice: 0,
@@ -996,9 +1159,12 @@ export default function Configurator() {
     const items: OfferItem[] = [];
     for (const d of doorsForPdf) {
       const q = d.qty ?? 1;
+      const doorName = d.isAtipic
+        ? `Ușă atipică — ${d.atipicDesc}`
+        : `Usa ${d.finisaj} ${d.model}`;
       items.push({
-        name: `Usa ${d.finisaj} ${d.model}`,
-        obs: [d.usaObs, d.culoare, d.deschidere].filter(Boolean).join(", ") || undefined,
+        name: doorName,
+        obs: [d.usaObs, d.isAtipic ? undefined : d.culoare, d.deschidere].filter(Boolean).join(", ") || undefined,
         um: "buc",
         qty: q,
         priceRon: d.usaPrice * rate,
@@ -1026,22 +1192,36 @@ export default function Configurator() {
           items.push({ name: v, um: "serviciu", qty: q, priceRon: p * rate });
         }
       }
+      for (const m of d.montaj ?? []) {
+        if (m.name.trim() && m.priceRon > 0) {
+          items.push({ name: `Montaj: ${m.name}`, um: "buc", qty: m.qty, priceRon: m.priceRon });
+        }
+      }
     }
 
     // Add standalone TOC items to PDF
     for (const t of cartTocs) {
-      const tocLabel = t.brand === "erkado"
-        ? `Toc Erkado${t.tocFinisaj ? ` ${t.tocFinisaj}` : ""} — Reglaj ${t.erkadoRange}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
-        : t.tocFinisaj === "Toc tunel"
-          ? "Toc tunel — reglabil drept"
+      const isTunelPdf = t.tocFinisaj === "Toc tunel";
+      const tocLabel = isTunelPdf
+        ? (t.tunelBrand === "erkado"
+          ? `Toc tunel Erkado — ${t.tunelReglaj ?? t.erkadoRange}${t.tunelFinisaj ?? t.erkadoCollection ? ` — ${t.tunelFinisaj ?? t.erkadoCollection}` : ""}${t.isDubla ? " (Dublă)" : ""}`
+          : `Toc tunel Naturen${t.isDubla ? " (Dublă)" : ""}`)
+        : t.brand === "erkado"
+          ? `Toc Erkado${t.tocFinisaj ? ` ${t.tocFinisaj}` : ""} — Reglaj ${t.erkadoRange}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
           : `Toc ${t.tocFinisaj}${t.tocColectie && t.tocColectie !== "__" ? ` ${t.tocColectie}` : ""}${t.tocModel ? ` — ${t.tocModel}` : ""}`;
+      const obsLines = [t.faraFalt ? "Fara falt" : undefined, t.obs || undefined].filter(Boolean);
       items.push({
         name: tocLabel,
-        obs: t.obs || undefined,
+        obs: obsLines.join("; ") || undefined,
         um: "buc",
         qty: t.qty,
         priceRon: t.tocPrice * rate,
       });
+      for (const m of t.montaj ?? []) {
+        if (m.name.trim() && m.priceRon > 0) {
+          items.push({ name: `Montaj: ${m.name}`, um: "buc", qty: m.qty, priceRon: m.priceRon });
+        }
+      }
     }
 
     const totalRon = items.reduce((s, i) => s + i.priceRon * i.qty, 0);
@@ -1092,7 +1272,7 @@ export default function Configurator() {
     }).catch(() => {});
   }
 
-  const canGenerate = cartDoors.length > 0 || cartTocs.length > 0 || usaPrice !== null;
+  const canGenerate = cartDoors.length > 0 || cartTocs.length > 0 || usaPrice !== null || (isAtipic && !!atipicDesc.trim());
 
   if (loading) {
     return (
@@ -1111,7 +1291,13 @@ export default function Configurator() {
     <div className="space-y-4">
 
       {/* ── PASUL 1: Configurare ușă ──────────────────────── */}
-      <div className={`rounded-xl border bg-white shadow-sm p-5 ${editingDoor ? "border-amber-400 ring-2 ring-amber-200" : "border-slate-200"}`}>
+      <div className={`rounded-xl border shadow-sm p-5 transition-colors ${
+        isAtipic
+          ? "border-amber-400 bg-amber-50 ring-2 ring-amber-200"
+          : editingDoor
+          ? "border-amber-400 ring-2 ring-amber-200 bg-white"
+          : "border-slate-200 bg-white"
+      }`}>
         {editingDoor && (
           <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
             <span className="text-xs font-semibold text-amber-700">Editezi ușa {cartDoors.findIndex(d => d.id === editingDoor) + 1} — modifică orice câmp și salvează</span>
@@ -1119,38 +1305,82 @@ export default function Configurator() {
           </div>
         )}
         {/* Ușă */}
-        <Divider label="Ușă" />
-        <div className="grid grid-cols-[1fr_1fr_1.5fr_auto] gap-2 items-end mb-2">
-          <div>
-            <FieldLabel required>Finisaj</FieldLabel>
-            <Combo value={finisaj} options={finisajOpts} onChange={handleFinisaj} />
-          </div>
-          <div>
-            <FieldLabel>Colecție</FieldLabel>
-            <Combo value={colectie} options={colectieOpts} onChange={handleColectie} disabled={!finisaj} />
-          </div>
-          <div>
-            <FieldLabel>Model</FieldLabel>
-            <Combo value={model} options={modelOpts} onChange={handleModel} disabled={!colectie}
-              optionPrices={modelPrices} onAddOption={handleAddModelOption} onSetOptionPrice={handleSetModelPrice}
-              onDeleteOption={handleDeleteModelOption}
-              isDeletable={m => `${finisaj}|${colectie}|${m}` in doorPriceOverrides} />
-          </div>
-          <PriceBadge price={usaPrice} selected={!!model} />
+        <div className="flex items-center gap-2 my-4">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            {isAtipic ? "Ușă Atipică" : "Ușă"}
+          </span>
+          <div className="flex-1 h-px bg-slate-100" />
+          <button
+            onClick={() => { setIsAtipic(a => !a); setFinisaj(""); setColectie(""); setModel(""); setAtipicDesc(""); setAtipicManualPrice(""); }}
+            className={`text-xs font-semibold px-2.5 py-1 rounded-md border transition shrink-0 ${
+              isAtipic
+                ? "bg-amber-400 text-white border-amber-400"
+                : "bg-white text-slate-500 border-slate-300 hover:border-amber-400 hover:text-amber-600"
+            }`}
+          >
+            Atipic
+          </button>
         </div>
 
-        {model && (
-          <div className="grid grid-cols-[1fr_1fr_1fr_1.5fr] gap-2 mt-2">
+        {isAtipic ? (
+          <div className="grid grid-cols-[1fr_auto] gap-3 items-end mb-2">
             <div>
-              <FieldLabel>Culoare</FieldLabel>
-              <Combo value={culoare} options={culoriOpts} onChange={setCuloare} placeholder="— culoare —" disabled={!model} />
+              <FieldLabel required>Descriere atipic</FieldLabel>
+              <input
+                value={atipicDesc}
+                onChange={e => setAtipicDesc(e.target.value)}
+                placeholder="ex: Ușă specială cu dimensiuni non-standard…"
+                className="w-full rounded-lg border border-amber-300 bg-white px-4 py-2.5 text-sm text-amber-900 placeholder-amber-400 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+              />
             </div>
             <div>
+              <FieldLabel>Preț (EUR)</FieldLabel>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number" min="0" placeholder="0"
+                  value={atipicManualPrice}
+                  onChange={e => setAtipicManualPrice(e.target.value)}
+                  className="w-24 rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-sm font-bold text-amber-800 text-center outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                />
+                <span className="text-xs text-slate-500 font-medium">EUR</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-[1fr_1fr_1.5fr_auto] gap-2 items-end mb-2">
+            <div>
+              <FieldLabel required>Finisaj</FieldLabel>
+              <Combo value={finisaj} options={finisajOpts} onChange={handleFinisaj} />
+            </div>
+            <div>
+              <FieldLabel>Colecție</FieldLabel>
+              <Combo value={colectie} options={colectieOpts} onChange={handleColectie} disabled={!finisaj} />
+            </div>
+            <div>
+              <FieldLabel>Model</FieldLabel>
+              <Combo value={model} options={modelOpts} onChange={handleModel} disabled={!colectie}
+                optionPrices={modelPrices} onAddOption={handleAddModelOption} onSetOptionPrice={handleSetModelPrice}
+                onDeleteOption={handleDeleteModelOption}
+                isDeletable={m => `${finisaj}|${colectie}|${m}` in doorPriceOverrides} />
+            </div>
+            <PriceBadge price={usaPrice} selected={!!model} />
+          </div>
+        )}
+
+        {(model || isAtipic) && (
+          <div className="grid grid-cols-[1fr_1fr_1fr_1.5fr] gap-2 mt-2">
+            {!isAtipic && (
+              <div>
+                <FieldLabel>Culoare</FieldLabel>
+                <Combo value={culoare} options={culoriOpts} onChange={setCuloare} placeholder="— culoare —" disabled={!model} />
+              </div>
+            )}
+            <div className={isAtipic ? "" : ""}>
               <FieldLabel>Deschidere</FieldLabel>
               <Combo value={deschidere} options={DESCHIDERI} onChange={setDeschidere} placeholder="— dr./stg. —" />
             </div>
-            <div />
-            <div>
+            {!isAtipic && <div />}
+            <div className={isAtipic ? "col-span-3" : ""}>
               <FieldLabel>Observații</FieldLabel>
               <input
                 value={usaObs}
@@ -1228,6 +1458,10 @@ export default function Configurator() {
           <PriceBadge price={manPrice} />
         </div>
 
+        {/* Montaj */}
+        <Divider label="Montaj" />
+        <MontajSection montaj={usaMontaj} onChange={setUsaMontaj} />
+
         {/* Costuri adiționale */}
         <Divider label="Costuri adiționale" />
         {costVars.map((val, idx) => {
@@ -1268,7 +1502,7 @@ export default function Configurator() {
         })}
 
         {/* Bottom bar: total + qty + add */}
-        {usaPrice !== null && (
+        {(isAtipic ? !!atipicDesc.trim() : usaPrice !== null) && (
           <div className="mt-5 rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3.5">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
@@ -1337,26 +1571,80 @@ export default function Configurator() {
             </div>
             {tocFinisaj === "Toc tunel" ? (
               <>
-                <div className="flex-1">
-                  <FieldLabel>Pret reglabil drept (EUR)</FieldLabel>
-                  <input
-                    type="number" min="0" placeholder="0"
-                    value={tocTunelPrice}
-                    onChange={e => setTocTunelPrice(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-0.5">Aferent domeniului de reglare</p>
+                {/* Brand selector for toc tunel */}
+                <div className="flex-none self-end pb-0.5">
+                  <FieldLabel>Brand</FieldLabel>
+                  <div className="flex gap-1 mt-1">
+                    {(["naturen", "erkado"] as const).map(b => (
+                      <button
+                        key={b}
+                        onClick={() => { setTocTunelBrand(b); setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false); }}
+                        className={`px-3 py-2 rounded-lg text-xs font-semibold border transition ${
+                          tocTunelBrand === b
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                            : "bg-white text-slate-600 border-slate-300 hover:border-indigo-300 hover:text-indigo-600"
+                        }`}
+                      >
+                        {b === "naturen" ? "Naturen" : "Erkado"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <label className="flex items-center gap-1.5 cursor-pointer select-none self-center mt-3">
-                  <input
-                    type="checkbox"
-                    checked={tocTunelFaraFalt}
-                    onChange={e => setTocTunelFaraFalt(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600"
-                  />
-                  <span className="text-sm text-slate-600 whitespace-nowrap">Fara falt</span>
-                </label>
-                <PriceBadge price={parseFloat(tocTunelPrice) || null} selected={!!tocTunelPrice} />
+
+                {/* Naturen tunel: manual price */}
+                {tocTunelBrand === "naturen" && (
+                  <>
+                    <div className="flex-1">
+                      <FieldLabel>Preț (EUR)</FieldLabel>
+                      <input
+                        type="number" min="0" placeholder="0"
+                        value={tocTunelPrice}
+                        onChange={e => setTocTunelPrice(e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none self-center mt-3">
+                      <input type="checkbox" checked={tocTunelFaraFalt} onChange={e => setTocTunelFaraFalt(e.target.checked)} className="rounded border-slate-300 text-indigo-600" />
+                      <span className="text-sm text-slate-600 whitespace-nowrap">Fara falt</span>
+                    </label>
+                  </>
+                )}
+
+                {/* Erkado tunel: reglaj + finisaj */}
+                {tocTunelBrand === "erkado" && (
+                  <>
+                    <div className="flex-1">
+                      <FieldLabel>Reglaj</FieldLabel>
+                      <Combo
+                        value={tocTunelErkadoReglaj}
+                        options={ERKADO_TOC_TUNEL.map(e => e.range)}
+                        onChange={v => { setTocTunelErkadoReglaj(v); setTocTunelErkadoFinisaj(""); }}
+                        optionPrices={erkadoTocTunelReglajPrices}
+                      />
+                    </div>
+                    {tocTunelErkadoReglaj && (
+                      <div className="flex-1">
+                        <FieldLabel>Finisaj toc</FieldLabel>
+                        <Combo
+                          value={tocTunelErkadoFinisaj}
+                          options={[...ERKADO_TOC_TUNEL_FINISAJE]}
+                          onChange={v => setTocTunelErkadoFinisaj(v as ErkadoTocTunelFinisaj)}
+                          optionPrices={erkadoTocTunelFinisajPrices}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Dubla checkbox */}
+                {tocTunelBrand && tocTunelBasePrice !== null && (
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none self-center mt-3">
+                    <input type="checkbox" checked={tocTunelDubla} onChange={e => setTocTunelDubla(e.target.checked)} className="rounded border-slate-300 text-indigo-600" />
+                    <span className="text-sm text-slate-600 whitespace-nowrap">Dublă (+30%)</span>
+                  </label>
+                )}
+
+                <PriceBadge price={effectiveTocPrice} selected={!!(tocTunelBrand && tocTunelBasePrice !== null)} />
               </>
             ) : tocFinisaj ? (
               <>
@@ -1404,18 +1692,28 @@ export default function Configurator() {
               </>
             ) : null}
           </div>
-          {tocFinisaj && tocBrand && tocFinisaj !== "Toc tunel" && (
+          {/* Observatii — shown for all toc types */}
+          {(tocFinisaj !== "Toc tunel" ? !!(tocFinisaj && tocBrand) : !!tocTunelBrand) && (
             <div>
-              <FieldLabel>Observații toc</FieldLabel>
-              <input
+              <FieldLabel>Observații</FieldLabel>
+              <textarea
                 value={tocObs}
                 onChange={e => setTocObs(e.target.value)}
-                placeholder="ex: Reglabil 100-120…"
-                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                placeholder="Notițe libere despre acest toc…"
+                rows={2}
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 resize-none"
               />
             </div>
           )}
-          {tocFinisaj && tocBrand && (
+          {/* Montaj */}
+          {(tocFinisaj !== "Toc tunel" ? !!(tocFinisaj && tocBrand) : !!tocTunelBrand) && (
+            <div>
+              <FieldLabel>Montaj</FieldLabel>
+              <MontajSection montaj={tocMontaj} onChange={setTocMontaj} />
+            </div>
+          )}
+          {/* Costuri adiționale */}
+          {(tocFinisaj !== "Toc tunel" ? !!(tocFinisaj && tocBrand) : !!tocTunelBrand) && (
             <div>
               <FieldLabel>Costuri adiționale</FieldLabel>
               <div className="flex flex-wrap gap-2">
@@ -1439,7 +1737,7 @@ export default function Configurator() {
           )}
         </div>
 
-        {(tocFinisaj === "Toc tunel" ? !!tocTunelPrice : !!(tocFinisaj && tocBrand)) && (
+        {(tocFinisaj === "Toc tunel" ? effectiveTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
           <div className="mt-4 rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
@@ -1503,15 +1801,15 @@ export default function Configurator() {
                         U{i + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-slate-800">
-                          {d.finisaj}
+                        <p className={`text-sm font-semibold ${d.isAtipic ? "text-amber-700" : "text-slate-800"}`}>
+                          {d.isAtipic ? `Atipic: ${d.atipicDesc}` : d.finisaj}
                           {(d.qty ?? 1) > 1 && (
                             <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-xs font-bold">×{d.qty}</span>
                           )}
                         </p>
                         {/* Inline-editable fields */}
                         <div className="flex flex-wrap gap-2 mt-1.5 items-center">
-                          {doorColectieOpts.length > 0 && (
+                          {!d.isAtipic && doorColectieOpts.length > 0 && (
                             <select
                               value={d.colectie}
                               onChange={e => handlePatchDoorColectie(d.id, d.finisaj, e.target.value)}
@@ -1521,7 +1819,7 @@ export default function Configurator() {
                               {doorColectieOpts.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                           )}
-                          {d.colectie && doorModelOpts.length > 0 && (
+                          {!d.isAtipic && d.colectie && doorModelOpts.length > 0 && (
                             <select
                               value={d.model}
                               onChange={e => handlePatchDoorModel(d.id, d, e.target.value)}
@@ -1531,7 +1829,7 @@ export default function Configurator() {
                               {doorModelOpts.map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
                           )}
-                          {doorCuloriOpts.length > 0 && (
+                          {!d.isAtipic && doorCuloriOpts.length > 0 && (
                             <select
                               value={d.culoare}
                               onChange={e => handlePatchDoor(d.id, { culoare: e.target.value })}
@@ -1616,10 +1914,13 @@ export default function Configurator() {
             {/* ── TOCs ── */}
             {cartTocs.map((t, i) => {
               const isErkadoItem = t.brand === "erkado";
-              const tocLabel = isErkadoItem
-                ? `Toc Erkado${t.tocFinisaj ? ` ${t.tocFinisaj}` : ""} — Reglaj ${t.erkadoRange}`
-                : t.tocFinisaj === "Toc tunel"
-                  ? "Toc tunel reglabil"
+              const isTunelItem = t.tocFinisaj === "Toc tunel";
+              const tocLabel = isTunelItem
+                ? (t.tunelBrand === "erkado"
+                  ? `Toc tunel Erkado — ${t.tunelReglaj ?? t.erkadoRange}${t.tunelFinisaj ?? t.erkadoCollection ? ` — ${t.tunelFinisaj ?? t.erkadoCollection}` : ""}${t.isDubla ? " (Dublă)" : ""}`
+                  : `Toc tunel Naturen${t.isDubla ? " (Dublă)" : ""}`)
+                : isErkadoItem
+                  ? `Toc Erkado${t.tocFinisaj ? ` ${t.tocFinisaj}` : ""} — Reglaj ${t.erkadoRange}`
                   : `Toc ${t.tocFinisaj}${t.tocColectie && t.tocColectie !== "__" ? ` ${t.tocColectie}` : ""}${t.tocModel ? ` — ${t.tocModel}` : ""}`;
               return (
                 <div key={t.id} className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3">
@@ -1631,7 +1932,16 @@ export default function Configurator() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-slate-800 truncate">{tocLabel}</p>
                         <div className="flex flex-wrap gap-1.5 mt-1 items-center">
-                          {t.obs && <span className="text-xs text-slate-500">{t.obs}</span>}
+                          {(t.faraFalt || t.obs) && (
+                            <span className="text-xs text-slate-500">
+                              {[t.faraFalt ? "Fara falt" : undefined, t.obs || undefined].filter(Boolean).join("; ")}
+                            </span>
+                          )}
+                          {(t.montaj ?? []).filter(m => m.name).map((m, mi) => (
+                            <span key={mi} className="text-xs bg-green-50 border border-green-200 rounded px-1.5 py-0.5 text-green-700">
+                              Montaj: {m.name} ×{m.qty}
+                            </span>
+                          ))}
                           {(t.costVars ?? []).filter(v => v).map(v => (
                             <span key={v} className="text-xs bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 text-amber-700">
                               + {v}
@@ -1722,7 +2032,7 @@ export default function Configurator() {
         <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-              Total ofertă · {cartDoors.reduce((s,d)=>s+(d.qty??1),0) + cartTocs.reduce((s,t)=>s+t.qty,0) + (usaPrice !== null ? currentQty : 0)} piese
+              Total ofertă · {cartDoors.reduce((s,d)=>s+(d.qty??1),0) + cartTocs.reduce((s,t)=>s+t.qty,0) + ((isAtipic ? !!atipicDesc.trim() : usaPrice !== null) ? currentQty : 0)} piese
             </span>
             <button
               onClick={handleFullReset}

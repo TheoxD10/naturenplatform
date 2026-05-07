@@ -31,7 +31,8 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\app\" -Directory)",
       "Bash(Select-Object Name)",
       "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\app\\\\components\\\\Configurator.tsx\" | Measure-Object -Line\\).Lines)",
-      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\app\\\\data\\\\constants.ts\" | Measure-Object -Line\\).Lines)"
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\app\\\\data\\\\constants.ts\" | Measure-Object -Line\\).Lines)",
+      "Bash(xargs ls -lh)"
     ]
   }
 }

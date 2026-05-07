@@ -1,3 +1,9 @@
+export interface MontajEntry {
+  name: string;
+  qty: number;
+  priceRon: number;
+}
+
 export interface TocLineItem {
   id: string;
   brand: "naturen" | "erkado";
@@ -8,11 +14,18 @@ export interface TocLineItem {
   // Erkado flow
   erkadoRange: string;
   erkadoCollection: string;
+  // Toc tunel specific
+  faraFalt?: boolean;
+  tunelBrand?: "naturen" | "erkado";
+  tunelReglaj?: string;
+  tunelFinisaj?: string;
+  isDubla?: boolean;
   // Common
   obs: string;
   tocPrice: number;
   costVars?: string[];
   costCustomPrices?: Record<string, number>;
+  montaj?: MontajEntry[];
   qty: number;
   totalEur: number;
 }
@@ -51,6 +64,11 @@ export interface DoorLineItem {
   // Extra costs
   costVars: string[];
   costCustomPrices?: Record<string, number>;
+  // Atipic door
+  isAtipic?: boolean;
+  atipicDesc?: string;
+  // Montaj entries (in RON)
+  montaj?: MontajEntry[];
   totalEur: number;
   qty?: number;
   // Measurements (filled in Fișa Măsurători)
@@ -114,6 +132,7 @@ export function emptyDoor(): Omit<DoorLineItem, "id" | "totalEur"> {
     broascaTip: "Broasca cheie", broascaDim: "", broascaCuloare: "Argintiu",
     manMod: "", manTip: "", manCol: "", manPrice: 0,
     costVars: [],
+    isAtipic: false, atipicDesc: "", montaj: [],
     dimUsa: "",
     golInitialLatime: "", golInitialInaltime: "",
     grosimePerete: "", reglajToc: "",

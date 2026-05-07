@@ -378,6 +378,28 @@ export const ERKADO_REGLAJ: { range: string; priceEur: number }[] = [
 ];
 
 export const ERKADO_COLLECTIONS = ["CPL", "Premium", "Greko"];
+
+export const ERKADO_TOC_TUNEL_FINISAJE = ["GREKO", "CPL/PREMIUM", "CPL 0.2", "LACUIT"] as const;
+export type ErkadoTocTunelFinisaj = typeof ERKADO_TOC_TUNEL_FINISAJE[number];
+
+export const ERKADO_TOC_TUNEL: { range: string; GREKO: number; "CPL/PREMIUM": number; "CPL 0.2": number; LACUIT: number }[] = [
+  { range: "80 - 95",   GREKO: 250, "CPL/PREMIUM": 266, "CPL 0.2": 279, LACUIT: 351 },
+  { range: "95 - 115",  GREKO: 250, "CPL/PREMIUM": 266, "CPL 0.2": 279, LACUIT: 351 },
+  { range: "115 - 135", GREKO: 250, "CPL/PREMIUM": 266, "CPL 0.2": 279, LACUIT: 351 },
+  { range: "135 - 155", GREKO: 262, "CPL/PREMIUM": 277, "CPL 0.2": 291, LACUIT: 369 },
+  { range: "155 - 175", GREKO: 262, "CPL/PREMIUM": 277, "CPL 0.2": 291, LACUIT: 369 },
+  { range: "175 - 195", GREKO: 262, "CPL/PREMIUM": 277, "CPL 0.2": 291, LACUIT: 369 },
+  { range: "195 - 215", GREKO: 269, "CPL/PREMIUM": 283, "CPL 0.2": 297, LACUIT: 387 },
+  { range: "215 - 235", GREKO: 269, "CPL/PREMIUM": 283, "CPL 0.2": 297, LACUIT: 387 },
+  { range: "235 - 255", GREKO: 269, "CPL/PREMIUM": 283, "CPL 0.2": 297, LACUIT: 387 },
+  { range: "255 - 275", GREKO: 275, "CPL/PREMIUM": 291, "CPL 0.2": 304, LACUIT: 405 },
+  { range: "275 - 295", GREKO: 275, "CPL/PREMIUM": 291, "CPL 0.2": 304, LACUIT: 405 },
+  { range: "295 - 315", GREKO: 285, "CPL/PREMIUM": 300, "CPL 0.2": 314, LACUIT: 414 },
+  { range: "315 - 355", GREKO: 297, "CPL/PREMIUM": 312, "CPL 0.2": 326, LACUIT: 427 },
+  { range: "355 - 375", GREKO: 325, "CPL/PREMIUM": 341, "CPL 0.2": 354, LACUIT: 451 },
+  { range: "375 - 395", GREKO: 340, "CPL/PREMIUM": 354, "CPL 0.2": 369, LACUIT: 468 },
+  { range: "395 - 415", GREKO: 340, "CPL/PREMIUM": 354, "CPL 0.2": 369, LACUIT: 468 },
+];
 // Standard wall thicknesses (mm)
 export const DIM_GROSIMI_PERETE = ["100", "115", "120", "125", "150", "175", "200", "250", "300", "350"];
 // Reglaj toc ranges based on wall thickness
