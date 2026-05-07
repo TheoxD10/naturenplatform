@@ -38,7 +38,12 @@ export interface DoorLineItem {
   nrBal: string;
   balMod: string;
   balCol: string;
+  balDim: string;
   ferPrice: number;
+  // Broasca spec
+  broascaTip: string;
+  broascaDim: string;
+  broascaCuloare: string;
   manMod: string;
   manTip: string;
   manCol: string;
@@ -105,7 +110,8 @@ export function emptyDoor(): Omit<DoorLineItem, "id" | "totalEur"> {
   return {
     finisaj: "", colectie: "", model: "", culoare: "", deschidere: "", usaObs: "", usaPrice: 0,
     addToc: false, tocFinisaj: "", tocColectie: "", tocModel: "", tocObs: "", tocPrice: 0,
-    nrBal: "", balMod: "", balCol: "", ferPrice: 0,
+    nrBal: "", balMod: "", balCol: "", balDim: "", ferPrice: 0,
+    broascaTip: "Broasca cheie", broascaDim: "", broascaCuloare: "Argintiu",
     manMod: "", manTip: "", manCol: "", manPrice: 0,
     costVars: [],
     dimUsa: "",

@@ -388,6 +388,18 @@ export const DIM_PERVAZ_OPTS = ["Fara pervaz", "Pervaz 40mm", "Pervaz 60mm", "Pe
 export const DIM_SCURARE = ["5", "8", "10", "12", "15", "20"];
 
 export const TIP_BROASCA = ["Simpla", "WC", "Magnetica", "Cilindru", "Yale", "Fara broasca"];
+
+// Hardware spec options (FI3D and named-model catalog)
+export const BROASCA_TIPURI_HW = ["Broasca cheie", "Broasca WC", "Broasca cilindru"];
+export const BROASCA_DIMENSIUNI = ["Dimensiune 1", "Dimensiune 2", "Dimensiune 3", "Dimensiune 4", "Dimensiune 5"];
+export const BROASCA_CULORI_HW = ["Argintiu", "Negru"];
+export const BAL_DIMENSIUNI = ["Dimensiune 1", "Dimensiune 2", "Dimensiune 3", "Dimensiune 4", "Dimensiune 5"];
+
+// Models that always use 3 balamale (override FI3D default of 2)
+export const MODELE_3_BALAMALE = new Set([
+  "Nola Line", "Cara Line", "Tea Line", "Grasso Line", "Lisbon Line",
+  "Amarylis Line", "Peonia Line", "Nemezja Line", "Laurencja Line",
+]);
 export const UMPLERE = ["Panou plin", "MDF simplu", "Geam simplu", "Geam mat", "Geam ornament", "Geam securizat", "Fara umplere"];
 
 export interface DimFields {

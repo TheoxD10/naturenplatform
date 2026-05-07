@@ -6,6 +6,11 @@ import {
   NONE_OPT,
   DESCHIDERI,
   ERKADO_REGLAJ,
+  BROASCA_TIPURI_HW,
+  BROASCA_DIMENSIUNI,
+  BROASCA_CULORI_HW,
+  BAL_DIMENSIUNI,
+  MODELE_3_BALAMALE,
 } from "../data/constants";
 import { useConfiguratorOptions } from "../hooks/useConfiguratorOptions";
 import { generateOfferPdf, type OfferItem } from "../lib/generatePdf";
@@ -415,6 +420,11 @@ export default function Configurator() {
   const [nrBal, setNrBal]         = useState("");
   const [balMod, setBalMod]       = useState("");
   const [balCol, setBalCol]       = useState("");
+  const [balDim, setBalDim]       = useState("");
+
+  const [broascaTip, setBroascaTip]       = useState("Broasca cheie");
+  const [broascaDim, setBroascaDim]       = useState("");
+  const [broascaCuloare, setBroascaCuloare] = useState("Argintiu");
 
   const [manMod, setManMod]       = useState("");
   const [manTip, setManTip]       = useState("");
@@ -587,9 +597,10 @@ export default function Configurator() {
 
   // ── Form handlers ──────────────────────────────────────────
   function resetHw() {
-    setNrBal(""); setBalMod(""); setBalCol("");
+    setNrBal(""); setBalMod(""); setBalCol("Argintiu"); setBalDim("");
     setManMod(""); setManTip(""); setManCol("");
     setCostVars([""]); setCostCustomPrices({});
+    setBroascaTip("Broasca cheie"); setBroascaDim(""); setBroascaCuloare("Argintiu");
   }
   function resetDoorForm() {
     setFinisaj(""); setColectie(""); setModel(""); setCuloare(""); setDeschidere(""); setUsaObs("");
@@ -605,11 +616,29 @@ export default function Configurator() {
     setEditingToc(null);
   }
 
+  function smartNrBal(newFinisaj: string, newColectie: string, newModel: string): string {
+    if (MODELE_3_BALAMALE.has(newColectie) || MODELE_3_BALAMALE.has(newModel)) return "3 balamale";
+    if (newFinisaj === "FI3D") return "2 balamale";
+    return "3 balamale";
+  }
+
+  function applySmartDefaults(newFinisaj: string, newColectie: string, newModel: string) {
+    setNrBal(smartNrBal(newFinisaj, newColectie, newModel));
+    setBroascaTip("Broasca cheie");
+    setBroascaCuloare("Argintiu");
+  }
+
   function handleFinisaj(v: string)  { setFinisaj(v); setColectie(""); setModel(""); setCuloare(""); setDeschidere(""); resetHw(); }
-  function handleColectie(v: string) { setColectie(v); setModel(""); setCuloare(""); setDeschidere(""); resetHw(); }
-  function handleModel(v: string)    { setModel(v); setCuloare(""); setDeschidere(""); resetHw(); }
-  function handleNrBal(v: string)    { setNrBal(v); setBalMod(""); setBalCol(""); setManMod(""); setManTip(""); setManCol(""); setCostVars([""]); }
-  function handleBalMod(v: string)   { setBalMod(v); setBalCol(""); setManMod(""); setManTip(""); setManCol(""); setCostVars([""]); }
+  function handleColectie(v: string) {
+    setColectie(v); setModel(""); setCuloare(""); setDeschidere(""); resetHw();
+    if (v) applySmartDefaults(finisaj, v, "");
+  }
+  function handleModel(v: string) {
+    setModel(v); setCuloare(""); setDeschidere(""); resetHw();
+    if (v) applySmartDefaults(finisaj, colectie, v);
+  }
+  function handleNrBal(v: string)    { setNrBal(v); setBalMod(""); setBalCol("Argintiu"); setBalDim(""); setManMod(""); setManTip(""); setManCol(""); setCostVars([""]); }
+  function handleBalMod(v: string)   { setBalMod(v); setBalCol("Argintiu"); setBalDim(""); setManMod(""); setManTip(""); setManCol(""); setCostVars([""]); }
   function handleBalCol(v: string)   { setBalCol(v); setManMod(""); setManTip(""); setManCol(""); setCostVars([""]); }
   function handleManMod(v: string)   { setManMod(v); setManTip(""); setManCol(""); setCostVars([""]); }
   function handleManTip(v: string)   { setManTip(v); setManCol(""); setCostVars([""]); }
@@ -716,7 +745,8 @@ export default function Configurator() {
         finisaj, colectie, model, culoare, deschidere, usaObs,
         usaPrice: usaPrice ?? 0,
         addToc: false, tocFinisaj: "", tocColectie: "", tocModel: "", tocObs: "", tocPrice: 0,
-        nrBal, balMod, balCol, ferPrice: ferPrice ?? 0,
+        nrBal, balMod, balCol, balDim, ferPrice: ferPrice ?? 0,
+        broascaTip, broascaDim, broascaCuloare,
         manMod, manTip, manCol, manPrice: manPrice ?? 0,
         costVars: activeCostVars,
         costCustomPrices: savedCustomPrices,
@@ -748,7 +778,8 @@ export default function Configurator() {
       addToc: false,
       tocFinisaj: "", tocColectie: "", tocModel: "",
       tocObs: "", tocPrice: 0,
-      nrBal, balMod, balCol, ferPrice: ferPrice ?? 0,
+      nrBal, balMod, balCol, balDim, ferPrice: ferPrice ?? 0,
+      broascaTip, broascaDim, broascaCuloare,
       manMod, manTip, manCol, manPrice: manPrice ?? 0,
       costVars: activeCostVars,
       costCustomPrices: savedCustomPrices,
@@ -896,7 +927,11 @@ export default function Configurator() {
     setCurrentQty(door.qty ?? 1);
     setNrBal(door.nrBal);
     setBalMod(door.balMod);
-    setBalCol(door.balCol);
+    setBalCol(door.balCol ?? "Argintiu");
+    setBalDim(door.balDim ?? "");
+    setBroascaTip(door.broascaTip ?? "Broasca cheie");
+    setBroascaDim(door.broascaDim ?? "");
+    setBroascaCuloare(door.broascaCuloare ?? "Argintiu");
     setManMod(door.manMod);
     setManTip(door.manTip);
     setManCol(door.manCol);
@@ -941,7 +976,8 @@ export default function Configurator() {
       addToc: false,
       tocFinisaj: "", tocColectie: "", tocModel: "",
       tocObs: "", tocPrice: 0,
-      nrBal, balMod, balCol, ferPrice: ferPrice ?? 0,
+      nrBal, balMod, balCol, balDim, ferPrice: ferPrice ?? 0,
+      broascaTip, broascaDim, broascaCuloare,
       manMod, manTip, manCol, manPrice: manPrice ?? 0,
       costVars: currActiveCostVars,
       costCustomPrices: currSavedCustomPrices,
@@ -1128,20 +1164,48 @@ export default function Configurator() {
 
         {/* Feronerie & Mâner */}
         <Divider label="Feronerie & Mâner" />
-        <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end mb-3">
-          <div>
-            <FieldLabel>Nr. balamale</FieldLabel>
-            <Combo value={nrBal} options={["2 balamale", "3 balamale"]} onChange={handleNrBal} />
+
+        {/* Broasca */}
+        <div className="mb-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Broașcă</p>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <FieldLabel>Tip broașcă</FieldLabel>
+              <Combo value={broascaTip} options={BROASCA_TIPURI_HW} onChange={setBroascaTip} />
+            </div>
+            <div>
+              <FieldLabel>Dimensiune</FieldLabel>
+              <Combo value={broascaDim} options={BROASCA_DIMENSIUNI} onChange={setBroascaDim} />
+            </div>
+            <div>
+              <FieldLabel>Culoare</FieldLabel>
+              <Combo value={broascaCuloare} options={BROASCA_CULORI_HW} onChange={setBroascaCuloare} />
+            </div>
           </div>
-          <div>
-            <FieldLabel>Tip balama</FieldLabel>
-            <Combo value={balMod} options={nrBal ? balModels : []} onChange={handleBalMod} disabled={!nrBal} />
+        </div>
+
+        {/* Balamale */}
+        <div className="mb-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Balamale</p>
+          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-end">
+            <div>
+              <FieldLabel>Nr. balamale</FieldLabel>
+              <Combo value={nrBal} options={["2 balamale", "3 balamale"]} onChange={handleNrBal} />
+            </div>
+            <div>
+              <FieldLabel>Dimensiune</FieldLabel>
+              <Combo value={balDim} options={nrBal ? BAL_DIMENSIUNI : []} onChange={setBalDim} disabled={!nrBal} />
+            </div>
+            <div>
+              <FieldLabel>Tip balama</FieldLabel>
+              <Combo value={balMod} options={nrBal ? balModels : []} onChange={handleBalMod} disabled={!nrBal} />
+            </div>
+            <div>
+              <FieldLabel>Culoare balama</FieldLabel>
+              <Combo value={balCol} options={balMod ? balCulori : []} onChange={handleBalCol} disabled={!balMod} />
+            </div>
+            <PriceBadge price={ferPrice} />
           </div>
-          <div>
-            <FieldLabel>Culoare balama</FieldLabel>
-            <Combo value={balCol} options={balMod ? balCulori : []} onChange={handleBalCol} disabled={!balMod} />
-          </div>
-          <PriceBadge price={ferPrice} />
         </div>
         <div className="grid grid-cols-[1fr_1fr_1.5fr_auto] gap-2 items-end">
           <div>
@@ -1488,6 +1552,16 @@ export default function Configurator() {
                           {d.ferPrice > 0 && (
                             <span className="text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-600">
                               {d.nrBal}× {d.balMod} {d.balCol}
+                            </span>
+                          )}
+                          {d.balDim && (
+                            <span className="text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-600">
+                              Bal. {d.balDim}
+                            </span>
+                          )}
+                          {d.broascaTip && (
+                            <span className="text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-600">
+                              {d.broascaTip}{d.broascaDim ? ` ${d.broascaDim}` : ""}{d.broascaCuloare ? ` ${d.broascaCuloare}` : ""}
                             </span>
                           )}
                           {d.manPrice > 0 && (
