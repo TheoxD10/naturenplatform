@@ -32,7 +32,10 @@
       "Bash(Select-Object Name)",
       "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\app\\\\components\\\\Configurator.tsx\" | Measure-Object -Line\\).Lines)",
       "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\app\\\\data\\\\constants.ts\" | Measure-Object -Line\\).Lines)",
-      "Bash(xargs ls -lh)"
+      "Bash(xargs ls -lh)",
+      "Bash(Get-ChildItem *)",
+      "Bash(xargs grep -l \"oferta\\\\|Oferta\")",
+      "Bash(xargs grep -l \"generateOfferPdf\\\\|generatePdf\")"
     ]
   }
 }

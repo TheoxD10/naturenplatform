@@ -409,19 +409,19 @@ function MontajSection({ montaj, onChange }: { montaj: MontajEntry[]; onChange: 
                 type="text" placeholder="Denumire serviciu"
                 value={m.name}
                 onChange={e => updateRow(i, { name: e.target.value })}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <input
                 type="number" min="1" placeholder="1"
                 value={m.qty || ""}
-                onChange={e => updateRow(i, { qty: parseInt(e.target.value) || 1 })}
-                className="w-14 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                onChange={e => updateRow(i, { qty: parseInt(e.target.value) || 0 })}
+                className="w-14 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <input
                 type="number" min="0" step="0.01" placeholder="0"
                 value={m.priceRon || ""}
                 onChange={e => updateRow(i, { priceRon: parseFloat(e.target.value) || 0 })}
-                className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <button onClick={() => removeRow(i)} className="text-slate-400 hover:text-red-500 transition w-6 flex justify-center">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -538,9 +538,14 @@ export default function Configurator() {
   const [buyerAddress, setBuyerAddress] = useState("");
   const [exchangeRate, setExchangeRate] = useState("4.97");
   const [discountPercent, setDiscountPercent] = useState("0");
+  const [discountType, setDiscountType]       = useState<"percent" | "flat">("percent");
+  const [discountFlat, setDiscountFlat]       = useState("0");
   const [deliveryDays, setDeliveryDays] = useState("");
   const [agent, setAgent]               = useState("Magazin Oradea");
   const [advancePercent, setAdvancePercent] = useState("50");
+  const [observatii, setObservatii]         = useState("");
+  const [ofertaTab, setOfertaTab]           = useState<"oferta"|"client"|"observatii">("oferta");
+  const [ofertaMontaj, setOfertaMontaj]     = useState<MontajEntry[]>([]);
 
   useEffect(() => {
     fetch("/api/data")
@@ -699,6 +704,23 @@ export default function Configurator() {
   const grandTotal     = cartTotal + currentDoorTotal;
   const rate       = parseFloat(exchangeRate) || 4.97;
 
+  const cartMontajRon = [
+    ...cartDoors.flatMap(d => (d.montaj ?? []).filter(m => m.name.trim() && m.priceRon > 0).map(m => m.priceRon * (m.qty || 1))),
+    ...cartTocs.flatMap(t => (t.montaj ?? []).filter(m => m.name.trim() && m.priceRon > 0).map(m => m.priceRon * (m.qty || 1))),
+    ...ofertaMontaj.filter(m => m.name.trim() && m.priceRon > 0).map(m => m.priceRon * (m.qty || 1)),
+  ].reduce((s, v) => s + v, 0);
+  const currentMontajRon = (isAtipic ? !!atipicDesc.trim() : usaPrice !== null)
+    ? usaMontaj.filter(m => m.name.trim() && m.priceRon > 0).reduce((s, m) => s + m.priceRon * (m.qty || 1), 0)
+    : 0;
+  const totalMontajRon = cartMontajRon + currentMontajRon;
+  const totalBeforeDiscount = grandTotal * rate + totalMontajRon;
+  const discountAmtRon = discountType === "percent"
+    ? totalBeforeDiscount * (parseFloat(discountPercent) / 100)
+    : parseFloat(discountFlat) || 0;
+  const discountLabel = discountType === "percent"
+    ? `${discountPercent}%`
+    : `${discountFlat} RON`;
+
   // ── Form handlers ──────────────────────────────────────────
   function resetHw() {
     setNrBal(""); setBalMod(""); setBalCol("Argintiu"); setBalDim("");
@@ -825,7 +847,8 @@ export default function Configurator() {
       buyerAddress,
       agent,
       eurRate: parseFloat(exchangeRate) || 4.97,
-      discountPercent: parseFloat(discountPercent) || 0,
+      discountAmt: discountAmtRon,
+      discountLabel,
       deliveryDays,
       advancePercent: parseFloat(advancePercent) || 50,
       totalEur: doors.reduce((s, d) => s + d.totalEur * (d.qty ?? 1), 0) +
@@ -1224,6 +1247,12 @@ export default function Configurator() {
       }
     }
 
+    for (const m of ofertaMontaj) {
+      if (m.name.trim() && m.priceRon > 0) {
+        items.push({ name: `Montaj: ${m.name}`, um: "buc", qty: m.qty || 1, priceRon: m.priceRon });
+      }
+    }
+
     const totalRon = items.reduce((s, i) => s + i.priceRon * i.qty, 0);
     const advRon   = totalRon * (parseFloat(advancePercent) / 100);
 
@@ -1245,31 +1274,36 @@ export default function Configurator() {
       buyerName,
       buyerPhone,
       buyerAddress,
-      discountPercent: parseFloat(discountPercent) || 0,
+      discountAmt: discountAmtRon,
+      discountLabel,
       deliveryDays,
       agent,
       advanceRon: advRon,
+      observatii,
     });
 
-    // Update Firestore with final PDF snapshot
-    setDoc(doc(db, "offers", offerId), {
+    // Update Firestore with final PDF snapshot (JSON round-trip strips undefined values)
+    setDoc(doc(db, "offers", offerId), JSON.parse(JSON.stringify({
       offerNumber,
       offerDate,
       buyerName,
       buyerPhone,
       buyerAddress,
       agent,
+      observatii: observatii || "",
       eurRate: parseFloat(exchangeRate),
-      discountPercent: parseFloat(discountPercent) || 0,
+      discountAmt: discountAmtRon,
+      discountLabel,
       deliveryDays,
       advancePercent: parseFloat(advancePercent) || 50,
       totalEur: grandTotal,
       totalRon,
+      montajRon: totalMontajRon,
       doorsCount: doorsForPdf.reduce((s, d) => s + (d.qty ?? 1), 0),
       doors: doorsForPdf,
       pdfGeneratedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    }).catch(() => {});
+    }))).catch(() => {});
   }
 
   const canGenerate = cartDoors.length > 0 || cartTocs.length > 0 || usaPrice !== null || (isAtipic && !!atipicDesc.trim());
@@ -1457,10 +1491,6 @@ export default function Configurator() {
           </div>
           <PriceBadge price={manPrice} />
         </div>
-
-        {/* Montaj */}
-        <Divider label="Montaj" />
-        <MontajSection montaj={usaMontaj} onChange={setUsaMontaj} />
 
         {/* Costuri adiționale */}
         <Divider label="Costuri adiționale" />
@@ -1703,13 +1733,6 @@ export default function Configurator() {
                 rows={2}
                 className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 resize-none"
               />
-            </div>
-          )}
-          {/* Montaj */}
-          {(tocFinisaj !== "Toc tunel" ? !!(tocFinisaj && tocBrand) : !!tocTunelBrand) && (
-            <div>
-              <FieldLabel>Montaj</FieldLabel>
-              <MontajSection montaj={tocMontaj} onChange={setTocMontaj} />
             </div>
           )}
           {/* Costuri adiționale */}
@@ -1988,6 +2011,14 @@ export default function Configurator() {
           </div>
 
           <div className="mt-3 flex justify-end items-center gap-6">
+            {cartMontajRon > 0 && (
+              <div className="text-right">
+                <p className="text-xs text-slate-400">Montaj</p>
+                <p className="text-lg font-bold text-green-700">
+                  +{cartMontajRon.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RON
+                </p>
+              </div>
+            )}
             <div className="text-right">
               <p className="text-xs text-slate-400">Subtotal coș</p>
               <p className="text-xl font-bold text-emerald-700">{cartTotal} EUR</p>
@@ -1996,39 +2027,102 @@ export default function Configurator() {
         </StepSection>
       )}
 
-      {/* ── PASUL 4: Detalii ofertă ───────────────────────── */}
-      <StepSection step={(cartDoors.length > 0 || cartTocs.length > 0) ? 4 : 3} title="Detalii Ofertă & Client" icon="📄" accent="slate">
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <Input label="Nr. Ofertă" value={offerNumber} onChange={setOfferNumber} placeholder="ex: 2723" />
-          <Input label="Data Ofertei" value={offerDate} onChange={setOfferDate} placeholder="01.01.2025" />
-          <Input label="Curs EUR/RON" value={exchangeRate} onChange={setExchangeRate} onBlur={() => { const n = parseFloat(exchangeRate); if (!isNaN(n) && n > 0) updateEuroCourse(n); }} placeholder="4.97" type="number" />
+      {/* ── PASUL 4: Montaj ───────────────────────────────── */}
+      <StepSection step={4} title="Montaj" icon="🔧" accent="slate">
+        <MontajSection montaj={ofertaMontaj} onChange={setOfertaMontaj} />
+      </StepSection>
+
+      {/* ── PASUL 5: Detalii ofertă ───────────────────────── */}
+      <StepSection step={(cartDoors.length > 0 || cartTocs.length > 0) ? 5 : 3} title="Detalii Ofertă & Client" icon="📄" accent="slate">
+        {/* Tab bar */}
+        <div className="flex gap-1 mb-4 border-b border-slate-200">
+          {(["oferta", "client", "observatii"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setOfertaTab(tab)}
+              className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide rounded-t-lg transition ${
+                ofertaTab === tab
+                  ? "bg-white border border-b-white border-slate-200 text-slate-900 -mb-px"
+                  : "text-slate-400 hover:text-slate-700"
+              }`}
+            >
+              {tab === "oferta" ? "Ofertă" : tab === "client" ? "Client" : "Observații"}
+            </button>
+          ))}
         </div>
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <Input label="Nume Cumpărător" value={buyerName} onChange={setBuyerName} placeholder="Popescu Flavia" />
-          <Input label="Telefon" value={buyerPhone} onChange={setBuyerPhone} placeholder="0771 000 000" />
+
+        {ofertaTab === "oferta" && (
+          <>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <Input label="Nr. Ofertă" value={offerNumber} onChange={setOfferNumber} placeholder="ex: 2723" />
+              <Input label="Data Ofertei" value={offerDate} onChange={setOfferDate} placeholder="01.01.2025" />
+              <Input label="Curs EUR/RON" value={exchangeRate} onChange={setExchangeRate} onBlur={() => { const n = parseFloat(exchangeRate); if (!isNaN(n) && n > 0) updateEuroCourse(n); }} placeholder="4.97" type="number" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <FieldLabel>Reducere comercială</FieldLabel>
+                <div className="flex rounded-lg overflow-hidden border border-slate-300 bg-white">
+                  <input
+                    type="number"
+                    min="0"
+                    value={discountType === "percent" ? discountPercent : discountFlat}
+                    onChange={e => discountType === "percent" ? setDiscountPercent(e.target.value) : setDiscountFlat(e.target.value)}
+                    placeholder="0"
+                    className="flex-1 min-w-0 px-3 py-2 text-sm text-slate-900 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setDiscountType(t => t === "percent" ? "flat" : "percent")}
+                    className="px-3 text-xs font-bold border-l border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-600 transition whitespace-nowrap"
+                  >
+                    {discountType === "percent" ? "%" : "RON"}
+                  </button>
+                </div>
+              </div>
+              <Input label="Termen livrare (zile)" value={deliveryDays} onChange={setDeliveryDays} placeholder="30" />
+              <Input label="Avans (%)" value={advancePercent} onChange={setAdvancePercent} placeholder="50" type="number" />
+            </div>
+          </>
+        )}
+
+        {ofertaTab === "client" && (
+          <>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <Input label="Nume Cumpărător" value={buyerName} onChange={setBuyerName} placeholder="Popescu Flavia" />
+              <Input label="Telefon" value={buyerPhone} onChange={setBuyerPhone} placeholder="0771 000 000" />
+              <div>
+                <FieldLabel>Agent Vânzări</FieldLabel>
+                <Combo value={agent} options={["Magazin Oradea"]} onChange={setAgent} />
+              </div>
+            </div>
+            <div>
+              <FieldLabel>Adresă Cumpărător</FieldLabel>
+              <input
+                value={buyerAddress}
+                onChange={(e) => setBuyerAddress(e.target.value)}
+                placeholder="str. Exemplu, nr. 1, bl. A, ap. 1, Oradea"
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
+          </>
+        )}
+
+        {ofertaTab === "observatii" && (
           <div>
-            <FieldLabel>Agent Vânzări</FieldLabel>
-            <Combo value={agent} options={["Magazin Oradea"]} onChange={setAgent} />
+            <FieldLabel>Observații</FieldLabel>
+            <textarea
+              value={observatii}
+              onChange={(e) => setObservatii(e.target.value)}
+              placeholder="Observații suplimentare pentru ofertă..."
+              rows={5}
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 resize-none"
+            />
           </div>
-        </div>
-        <div className="mb-4">
-          <FieldLabel>Adresă Cumpărător</FieldLabel>
-          <input
-            value={buyerAddress}
-            onChange={(e) => setBuyerAddress(e.target.value)}
-            placeholder="str. Exemplu, nr. 1, bl. A, ap. 1, Oradea"
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-          />
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <Input label="Reducere comercială (%)" value={discountPercent} onChange={setDiscountPercent} placeholder="0" type="number" />
-          <Input label="Termen livrare (zile)" value={deliveryDays} onChange={setDeliveryDays} placeholder="30" />
-          <Input label="Avans (%)" value={advancePercent} onChange={setAdvancePercent} placeholder="50" type="number" />
-        </div>
+        )}
       </StepSection>
 
       {/* ── Total + Generate ──────────────────────────────── */}
-      {canGenerate && (
+      {(cartDoors.length > 0 || cartTocs.length > 0) && (
         <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
@@ -2052,12 +2146,20 @@ export default function Configurator() {
                 {(grandTotal * rate).toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RON
               </p>
             </div>
+            {totalMontajRon > 0 && (
+              <div>
+                <p className="text-xs text-green-600 font-medium mb-0.5">+ Montaj</p>
+                <p className="text-xl font-bold text-green-700">
+                  {totalMontajRon.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RON
+                </p>
+              </div>
+            )}
           </div>
-          {parseFloat(discountPercent) > 0 && (
+          {discountAmtRon > 0 && (
             <p className="text-xs text-slate-500 mt-1">
-              După reducere {discountPercent}%:{" "}
+              După reducere ({discountLabel}):{" "}
               <span className="font-semibold text-slate-700">
-                {(grandTotal * rate * (1 - parseFloat(discountPercent) / 100)).toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RON
+                {(totalBeforeDiscount - discountAmtRon).toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RON
               </span>
             </p>
           )}

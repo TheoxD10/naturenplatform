@@ -29,10 +29,12 @@ export interface OfferData {
   buyerName: string;
   buyerPhone: string;
   buyerAddress: string;
-  discountPercent: number;
+  discountAmt: number;
+  discountLabel: string;
   deliveryDays: string;
   agent: string;
   advanceRon: number;
+  observatii?: string;
 }
 
 const COMPANY = {
@@ -134,7 +136,7 @@ export function generateOfferPdf(data: OfferData): void {
   // ── Build items ────────────────────────────────────────────
   y += 5;
   const subtotal = data.items.reduce((s, i) => s + i.priceRon, 0);
-  const discountAmt = data.discountPercent > 0 ? -(subtotal * data.discountPercent) / 100 : 0;
+  const discountAmt = data.discountAmt > 0 ? -data.discountAmt : 0;
   const totalFaraTva = subtotal + discountAmt;
   const tvaAmt = totalFaraTva * TVA;
   const totalCuTva = totalFaraTva + tvaAmt;
@@ -157,7 +159,7 @@ export function generateOfferPdf(data: OfferData): void {
   if (discountAmt < 0) {
     tableBody.push([
       "",
-      n(`REDUCERE COMERCIALA (${data.discountPercent}%)`),
+      n(`REDUCERE COMERCIALA (${data.discountLabel})`),
       "",
       "",
       "",
@@ -286,6 +288,22 @@ export function generateOfferPdf(data: OfferData): void {
       y += 4.5;
     }
     y += 1;
+  }
+
+  if (data.observatii?.trim()) {
+    y += 3;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(30, 30, 30);
+    doc.text(n("Observatii:"), margin, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(50, 50, 50);
+    const obsLines = doc.splitTextToSize(n(data.observatii.trim()), contentW);
+    for (const line of obsLines as string[]) {
+      doc.text(line, margin, y);
+      y += 4.5;
+    }
   }
 
   // ── Save ───────────────────────────────────────────────────
