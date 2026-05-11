@@ -72,6 +72,9 @@ export async function GET() {
     };
   }
 
+  // "Toc tunel" is a special UI type with its own brand/price logic — ensure it always appears
+  if (!tocData["Toc tunel"]) tocData["Toc tunel"] = {};
+
   data["TOC_V2"] = tocData;
 
   // ── 3. INNOVA static supplement (prices TBD — add rows to Excel Noduri to set real prices) ──

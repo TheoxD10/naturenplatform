@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import { useConfiguratorOptions } from '@/app/hooks/useConfiguratorOptions';
 import type { FerenerieItem, ManereItem, CosturiItem, CuloriData } from '@/app/hooks/useConfiguratorOptions';
 
-type Tab = 'feronerie' | 'manere' | 'costuri' | 'culori';
+type Tab = 'feronerie' | 'manere' | 'costuri' | 'culori' | 'modele';
+type DoorsData = Record<string, Record<string, Record<string, number | null>>>;
 
 export default function OpciuniPage() {
   const { user, loading: authLoading } = useAuth();
@@ -22,11 +23,24 @@ export default function OpciuniPage() {
     manere, manereModels,
     costuri,
     culori,
+    doorPriceOverrides,
     persistFeronerie,
     persistManere,
     persistCosturi,
     persistCulori,
+    updateDoorPriceOverride,
+    deleteDoorPriceOverride,
   } = useConfiguratorOptions();
+
+  const [doorsData, setDoorsData] = useState<DoorsData>({});
+  const [doorsLoading, setDoorsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then((d: DoorsData) => { setDoorsData(d); setDoorsLoading(false); })
+      .catch(() => setDoorsLoading(false));
+  }, []);
 
   const withFeedback = useCallback(async (fn: () => Promise<void>) => {
     setGlobalError(null);
@@ -55,6 +69,7 @@ export default function OpciuniPage() {
     { key: 'manere',    label: 'Mânere' },
     { key: 'costuri',   label: 'Costuri' },
     { key: 'culori',    label: 'Culori' },
+    { key: 'modele',    label: 'Prețuri Modele' },
   ];
 
   return (
@@ -105,7 +120,7 @@ export default function OpciuniPage() {
           ))}
         </div>
 
-        {loading ? (
+        {loading || (activeTab === 'modele' && doorsLoading) ? (
           <div className="flex items-center justify-center h-48 bg-white rounded-xl border border-slate-200">
             <svg className="h-6 w-6 animate-spin text-indigo-400" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -139,6 +154,14 @@ export default function OpciuniPage() {
               <CuloriTab
                 data={culori}
                 onSave={(data) => withFeedback(() => persistCulori(data))}
+              />
+            )}
+            {activeTab === 'modele' && (
+              <ModelePretTab
+                doorsData={doorsData}
+                overrides={doorPriceOverrides}
+                onSetOverride={updateDoorPriceOverride}
+                onDeleteOverride={deleteDoorPriceOverride}
               />
             )}
           </>
@@ -673,6 +696,152 @@ function CuloriTab({ data, onSave }: { data: CuloriData; onSave: (d: CuloriData)
             >
               Editează culori
             </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────── PREȚURI MODELE TAB ────────────────────────── */
+function ModelePretTab({
+  doorsData, overrides, onSetOverride, onDeleteOverride,
+}: {
+  doorsData: DoorsData;
+  overrides: Record<string, number>;
+  onSetOverride: (key: string, price: number) => void;
+  onDeleteOverride: (key: string) => void;
+}) {
+  const [selectedFinisaj, setSelectedFinisaj] = useState('');
+  const [selectedColectie, setSelectedColectie] = useState('');
+  const [editKey, setEditKey] = useState<string | null>(null);
+  const [editPrice, setEditPrice] = useState('');
+
+  const finisajList = Object.keys(doorsData).filter(k => k !== 'TOC_V2').sort();
+  const colectieList = selectedFinisaj ? Object.keys(doorsData[selectedFinisaj] ?? {}).sort() : [];
+  const modelList = (selectedFinisaj && selectedColectie)
+    ? Object.keys(doorsData[selectedFinisaj]?.[selectedColectie] ?? {}).sort()
+    : [];
+
+  function startEdit(key: string, current: number | null) {
+    setEditKey(key);
+    setEditPrice(current !== null ? String(current) : '');
+  }
+
+  function commitEdit(key: string) {
+    const p = parseFloat(editPrice);
+    if (!isNaN(p) && p >= 0) onSetOverride(key, p);
+    setEditKey(null);
+  }
+
+  return (
+    <div className="grid grid-cols-[180px_200px_1fr] gap-4">
+      {/* Column 1: Finisaj */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Finisaj</span>
+        </div>
+        <div className="overflow-auto max-h-[600px]">
+          {finisajList.map(f => (
+            <div key={f}
+              onClick={() => { setSelectedFinisaj(f); setSelectedColectie(''); setEditKey(null); }}
+              className={`px-4 py-2.5 cursor-pointer text-sm transition truncate ${selectedFinisaj === f ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'hover:bg-slate-50 text-slate-700'}`}
+            >{f}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Column 2: Colectie */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Colecție</span>
+        </div>
+        <div className="overflow-auto max-h-[600px]">
+          {!selectedFinisaj
+            ? <p className="text-xs text-slate-400 text-center py-6">Selectați un finisaj</p>
+            : colectieList.map(c => (
+              <div key={c}
+                onClick={() => { setSelectedColectie(c); setEditKey(null); }}
+                className={`px-4 py-2.5 cursor-pointer text-sm transition truncate ${selectedColectie === c ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'hover:bg-slate-50 text-slate-700'}`}
+              >{c}</div>
+            ))
+          }
+        </div>
+      </div>
+
+      {/* Column 3: Models with prices */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Modele {selectedColectie ? `— ${selectedColectie}` : ''}
+          </span>
+          {selectedColectie && (
+            <span className="text-xs text-slate-400">{modelList.length} modele</span>
+          )}
+        </div>
+        {!selectedColectie ? (
+          <p className="text-xs text-slate-400 text-center py-10">Selectați o colecție</p>
+        ) : (
+          <div className="overflow-auto max-h-[560px]">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-slate-200 text-left">
+                  <th className={thClass}>Model</th>
+                  <th className={thClass}>Preț Excel (EUR)</th>
+                  <th className={thClass}>Override Firestore</th>
+                  <th className={thClass}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {modelList.map(m => {
+                  const key = `${selectedFinisaj}|${selectedColectie}|${m}`;
+                  const basePrice = doorsData[selectedFinisaj]?.[selectedColectie]?.[m] ?? null;
+                  const override = overrides[key] ?? null;
+                  const isEditing = editKey === key;
+                  return (
+                    <tr key={m} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className={tdClass + ' font-medium'}>{m}</td>
+                      <td className={tdClass}>
+                        {basePrice !== null
+                          ? <span className={override !== null ? 'line-through text-slate-400 text-xs' : 'text-emerald-700 font-semibold'}>{basePrice} EUR</span>
+                          : <span className="text-slate-300 text-xs italic">—</span>
+                        }
+                      </td>
+                      <td className={tdClass}>
+                        {isEditing ? (
+                          <div className="flex gap-1.5 items-center">
+                            <input
+                              autoFocus
+                              type="number" min="0"
+                              value={editPrice}
+                              onChange={e => setEditPrice(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') commitEdit(key); if (e.key === 'Escape') setEditKey(null); }}
+                              className="w-24 rounded-lg border border-indigo-300 bg-white px-2 py-1 text-center text-sm outline-none"
+                            />
+                            <button onClick={() => commitEdit(key)} className={btnClass('indigo')}>✓</button>
+                            <button onClick={() => setEditKey(null)} className={btnClass('slate')}>✕</button>
+                          </div>
+                        ) : override !== null ? (
+                          <span className="font-semibold text-indigo-600">{override} EUR</span>
+                        ) : (
+                          <span className="text-slate-300 text-xs italic">—</span>
+                        )}
+                      </td>
+                      <td className={tdClass}>
+                        <div className="flex gap-1.5 justify-end">
+                          <button onClick={() => startEdit(key, override ?? basePrice)} className={btnClass('slate')}>
+                            {override !== null ? 'Edit' : 'Set'}
+                          </button>
+                          {override !== null && (
+                            <button onClick={() => onDeleteOverride(key)} className={btnClass('red')}>Reset</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
