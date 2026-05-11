@@ -33,7 +33,8 @@ export async function GET() {
     }
     if (!data[l2]) data[l2] = {};
     if (!data[l2][l3]) data[l2][l3] = {};
-    data[l2][l3][l4] = typeof price === "number" ? price : null;
+    const numPrice = typeof price === "number" ? price : (typeof price === "string" ? parseFloat(price) : NaN);
+    data[l2][l3][l4] = isFinite(numPrice) ? numPrice : null;
   }
 
   // ── 2. TOC from TOC Levels sheet ───────────────────────────
