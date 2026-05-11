@@ -1,6 +1,6 @@
 export const FINISAJ_ORDER = [
   "FI3D", "Vopsit", "CPL", "GREKO", "Premium", "VOPSIT UV",
-  "Vopsit Pulbere", "Sticla Graf", "Prefinisat Alb", "Finisaj PVC",
+  "Vopsit Pulbere", "Sticla Graf", "Sistem ascuns", "Finisaj PVC",
   "Usi Tehnice Reversibile", "Delight", "Forteca", "INNOVA",
 ];
 export const NONE_OPT = "—";
@@ -356,8 +356,8 @@ export const CULORI_PER_COLECTIE: Record<string, Record<string, string[]>> = {
   "Usi Tehnice Reversibile": {
     "Set usa multifunctionala": ["RAL 9010"],
   },
-  "Prefinisat Alb": {
-    "Filomuro deschidere interior/exterior": ["prefinisat", "aluminiu"],
+  "Sistem ascuns": {
+    "Filomuro": ["prefinisat", "aluminiu"],
   },
   "INNOVA": {
     "3D":     ["alb", "carpen", "nuc", "stejar riviera", "stejar pastel", "wenge alb", "stejar gotic", "halifax", "silver oak", "attick wood", "bergan", "kasmir"],

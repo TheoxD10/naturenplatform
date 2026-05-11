@@ -484,6 +484,7 @@ export default function Configurator() {
   const [standard, setStandard]     = useState("Standard Polonez");
   // Usa dubla
   const [usaDubla, setUsaDubla]           = useState(false);
+  const [usaDublaBrand, setUsaDublaBrand] = useState<"" | "naturen" | "erkado">("");
   const [tipUsaDubla, setTipUsaDubla]     = useState("");
   const [glisantaInchidere, setGlisantaInchidere] = useState<"carlig" | "fara">("carlig");
   const [glisantaProfilOpt, setGlisantaProfilOpt] = useState(false);
@@ -690,10 +691,17 @@ export default function Configurator() {
     ? erkadoSpecialTocPrice
     : tocPrice;
 
+  const isErkadoToc = tocFinisaj === "Toc tunel"
+    ? tocTunelBrand === "erkado"
+    : isErkadoSpecialType || tocBrand === "erkado";
+  const erkadoTocVariantaOptions = ["Standard", "Dublu (+30%)"];
+  const tocVariantaOptions = isErkadoToc ? erkadoTocVariantaOptions : [...TOC_VARIANTE];
+
   // Toc varianta multiplier
   const tocWithVarianta = (() => {
     const base = effectiveTocPrice;
     if (base === null) return null;
+    if (isErkadoToc) return base;
     if (tocVarianta === "Dublu (×2)") return Math.round(base * 2 * 100) / 100;
     if (tocVarianta === "Debară Reglabil (×1.5)") return Math.round(base * 1.5 * 100) / 100;
     if (tocVarianta === "Debară Fix (×2)") return Math.round(base * 2 * 100) / 100;
@@ -702,7 +710,9 @@ export default function Configurator() {
     return base;
   })();
   const tocStandardMult = tocStandard === "P2112" ? 1.15 : 1;
-  const finalTocPrice = tocWithVarianta !== null ? Math.round(tocWithVarianta * tocStandardMult * 100) / 100 : null;
+  const isTocDublu = tocTunelDubla || tocVarianta === "Dublu (+30%)";
+  const tocErkadoDubluMult = isErkadoToc && isTocDublu ? 1.3 : 1;
+  const finalTocPrice = tocWithVarianta !== null ? Math.round(tocWithVarianta * tocStandardMult * tocErkadoDubluMult * 100) / 100 : null;
 
   // Atipic effective price
   const effectiveUsaPrice = isAtipic ? (parseFloat(atipicManualPrice) || 0) : (usaPrice ?? 0);
@@ -719,7 +729,9 @@ export default function Configurator() {
   const glisantaSimplaPrice = baseUsaForDubla + glisRaw.adder + glisRaw.masca + glisRaw.profil + glisRaw.sistem + glisRaw.tocTunel;
 
   const effectiveUsaPriceForDubla = (() => {
-    if (!usaDubla || !tipUsaDubla || isAtipic) return effectiveUsaPrice;
+    if (!usaDubla || isAtipic) return effectiveUsaPrice;
+    if (usaDublaBrand === "erkado") return Math.round(baseUsaForDubla * 2 * 100) / 100;
+    if (usaDublaBrand !== "naturen" || !tipUsaDubla) return effectiveUsaPrice;
     if (tipUsaDubla === "Foi Ușă Dublă" || tipUsaDubla === "Foi Ușă Debară")
       return Math.round(baseUsaForDubla * 2.35 * 100) / 100;
     if (tipUsaDubla === "Glisantă Simplă (max 900mm)") return Math.round(glisantaSimplaPrice * 100) / 100;
@@ -768,6 +780,7 @@ export default function Configurator() {
     currentCostParts.reduce((s, p) => s + p, 0);
 
   const currentDoorTotal = currentDoorUnitTotal * currentQty;
+  const isUsaDublaReady = !usaDubla || !!usaDublaBrand;
 
   const cartDoorsTotal = cartDoors.reduce((s, d) => s + d.totalEur * (d.qty ?? 1), 0);
   const cartTocsTotal  = cartTocs.reduce((s, t) => s + t.totalEur * t.qty, 0);
@@ -803,7 +816,7 @@ export default function Configurator() {
   function resetDoorForm() {
     setFinisaj(""); setColectie(""); setModel(""); setCuloare(""); setDeschidere(""); setUsaObs("");
     setStandard("Standard Polonez");
-    setUsaDubla(false); setTipUsaDubla(""); setGlisantaInchidere("carlig");
+    setUsaDubla(false); setUsaDublaBrand(""); setTipUsaDubla(""); setGlisantaInchidere("carlig");
     setGlisantaProfilOpt(false); setGlisantaTocPret("");
     setCurrentQty(1);
     setEditingDoor(null);
@@ -860,7 +873,7 @@ export default function Configurator() {
     setErkadoSpecialReglaj(""); setErkadoSpecialFinisaj("");
     if (v === "Toc tunel") { setTocFinisaj(v); setTocColectie(""); setTocModel(""); setTocBrand(""); return; }
     if ((ERKADO_SPECIAL_TOC_TYPES as readonly string[]).includes(v)) {
-      setTocFinisaj(v); setTocColectie(""); setTocModel(""); setTocBrand("erkado"); return;
+      setTocFinisaj(v); setTocColectie(""); setTocModel(""); setTocBrand("erkado"); setTocVarianta("Standard"); return;
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toc = (doorsData["TOC_V2"] ?? {}) as Record<string, Record<string, Record<string, any>>>;
@@ -899,6 +912,7 @@ export default function Configurator() {
   }
   function handleTocBrand(b: "naturen" | "erkado") {
     setTocBrand(b); setTocColectie(""); setTocModel("");
+    setTocVarianta("Standard");
   }
 
   function handleTocCost(idx: number, val: string) {
@@ -946,6 +960,7 @@ export default function Configurator() {
   function handleAddDoor() {
     if (isAtipic && !atipicDesc.trim()) return;
     if (!isAtipic && usaPrice === null) return;
+    if (!isUsaDublaReady) return;
     const activeCostVars = costVars.filter(v => v && v !== NONE_OPT);
     const savedCustomPrices: Record<string, number> = {};
     for (const v of activeCostVars) {
@@ -966,6 +981,7 @@ export default function Configurator() {
         standard: standard !== "Standard Polonez" ? standard : undefined,
         usaPrice: finalUsaPrice,
         usaDubla: usaDubla || undefined,
+        usaDublaBrand: usaDubla ? (usaDublaBrand || undefined) : undefined,
         tipUsaDubla: usaDubla ? tipUsaDubla : undefined,
         glisantaInchidere: (usaDubla && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaInchidere : undefined,
         glisantaProfilOpt: (usaDubla && glisantaInchidere === "fara" && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaProfilOpt : undefined,
@@ -1010,6 +1026,7 @@ export default function Configurator() {
       standard: standard !== "Standard Polonez" ? standard : undefined,
       usaPrice: finalUsaPrice,
       usaDubla: usaDubla || undefined,
+      usaDublaBrand: usaDubla ? (usaDublaBrand || undefined) : undefined,
       tipUsaDubla: usaDubla ? tipUsaDubla : undefined,
       glisantaInchidere: (usaDubla && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaInchidere : undefined,
       glisantaProfilOpt: (usaDubla && glisantaInchidere === "fara" && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaProfilOpt : undefined,
@@ -1192,6 +1209,7 @@ export default function Configurator() {
     setDeschidere(door.deschidere);
     setStandard(door.standard ?? "Standard Polonez");
     setUsaDubla(door.usaDubla ?? false);
+    setUsaDublaBrand(door.usaDublaBrand ?? (door.usaDubla ? "naturen" : ""));
     setTipUsaDubla(door.tipUsaDubla ?? "");
     setGlisantaInchidere(door.glisantaInchidere ?? "carlig");
     setGlisantaProfilOpt(door.glisantaProfilOpt ?? false);
@@ -1221,7 +1239,13 @@ export default function Configurator() {
     setTocObs(toc.obs);
     setTocStandaloneQty(toc.qty);
     setTocMontaj(toc.montaj ?? []);
-    setTocVarianta(toc.tocVarianta ?? "Standard");
+    const editTocBrand = toc.tocFinisaj === "Toc tunel"
+      ? (toc.tunelBrand ?? toc.brand)
+      : toc.brand;
+    const savedTocVarianta = toc.tocVarianta ?? "Standard";
+    setTocVarianta(editTocBrand === "erkado"
+      ? (savedTocVarianta.includes("Dublu") ? "Dublu (+30%)" : "Standard")
+      : savedTocVarianta);
     setTocStandard(toc.standard ?? "Standard Polonez");
     const savedCostVars = toc.costVars ?? [];
     setTocCostVars(savedCostVars.length > 0 ? [...savedCostVars, ""] : [""]);
@@ -1270,7 +1294,7 @@ export default function Configurator() {
       const p = parseFloat(costCustomPrices[v] ?? "");
       if (!isNaN(p) && p > 0) currSavedCustomPrices[v] = p;
     }
-    const canIncludeCurrentDoor = isAtipic ? !!atipicDesc.trim() : usaPrice !== null;
+    const canIncludeCurrentDoor = (isAtipic ? !!atipicDesc.trim() : usaPrice !== null) && isUsaDublaReady;
     const currentAsItem: DoorLineItem | null = canIncludeCurrentDoor ? {
       id: `door-current-${Date.now()}`,
       finisaj: isAtipic ? "" : finisaj,
@@ -1281,6 +1305,7 @@ export default function Configurator() {
       standard: standard !== "Standard Polonez" ? standard : undefined,
       usaPrice: finalUsaPrice,
       usaDubla: usaDubla || undefined,
+      usaDublaBrand: usaDubla ? (usaDublaBrand || undefined) : undefined,
       tipUsaDubla: usaDubla ? tipUsaDubla : undefined,
       glisantaInchidere: (usaDubla && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaInchidere : undefined,
       glisantaProfilOpt: (usaDubla && glisantaInchidere === "fara" && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaProfilOpt : undefined,
@@ -1311,7 +1336,9 @@ export default function Configurator() {
     const items: OfferItem[] = [];
     for (const d of doorsForPdf) {
       const q = d.qty ?? 1;
-      const dublaSuffix = d.usaDubla && d.tipUsaDubla ? ` [${d.tipUsaDubla}]` : "";
+      const dublaSuffix = d.usaDubla
+        ? ` [${d.usaDublaBrand === "erkado" ? "Erkado dublă" : d.tipUsaDubla || "Naturen dublă"}]`
+        : "";
       const p2112Suffix = d.standard === "P2112" ? " [P2112]" : "";
       const doorName = d.isAtipic
         ? `Ușă atipică — ${d.atipicDesc}`
@@ -1449,7 +1476,7 @@ export default function Configurator() {
     }))).catch(() => {});
   }
 
-  const canGenerate = cartDoors.length > 0 || cartTocs.length > 0 || usaPrice !== null || (isAtipic && !!atipicDesc.trim());
+  const canGenerate = cartDoors.length > 0 || cartTocs.length > 0 || ((usaPrice !== null || (isAtipic && !!atipicDesc.trim())) && isUsaDublaReady);
 
   if (loading) {
     return (
@@ -1579,7 +1606,13 @@ export default function Configurator() {
               <input
                 type="checkbox"
                 checked={usaDubla}
-                onChange={e => { setUsaDubla(e.target.checked); if (!e.target.checked) setTipUsaDubla(""); }}
+                onChange={e => {
+                  setUsaDubla(e.target.checked);
+                  if (!e.target.checked) {
+                    setUsaDublaBrand("");
+                    setTipUsaDubla("");
+                  }
+                }}
                 className="w-4 h-4 accent-indigo-600"
               />
               <span className="text-sm font-semibold text-slate-700">Ușă dublă</span>
@@ -1587,10 +1620,33 @@ export default function Configurator() {
             {usaDubla && (
               <div className="mt-2 grid grid-cols-[1fr_1fr_1fr] gap-2 items-end">
                 <div>
+                  <FieldLabel>Brand ușă dublă</FieldLabel>
+                  <div className="flex gap-1 mt-1">
+                    {(["naturen", "erkado"] as const).map(b => (
+                      <button
+                        key={b}
+                        onClick={() => {
+                          setUsaDublaBrand(b);
+                          setTipUsaDubla("");
+                        }}
+                        className={`px-3 py-2 rounded-lg text-xs font-semibold border transition ${
+                          usaDublaBrand === b
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                            : "bg-white text-slate-600 border-slate-300 hover:border-indigo-300 hover:text-indigo-600"
+                        }`}
+                      >
+                        {b === "naturen" ? "Naturen" : "Erkado"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {usaDublaBrand === "naturen" && (
+                <div>
                   <FieldLabel>Tip ușă dublă</FieldLabel>
                   <Combo value={tipUsaDubla} options={[...USA_DUBLA_TYPES]} onChange={setTipUsaDubla} placeholder="— selectează —" />
                 </div>
-                {(tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)") && (<>
+                )}
+                {usaDublaBrand === "naturen" && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)") && (<>
                   <div>
                     <FieldLabel>Închidere glisantă</FieldLabel>
                     <Combo
@@ -1749,6 +1805,9 @@ export default function Configurator() {
                     </span>
                   )}
                 </p>
+                {!isUsaDublaReady && (
+                  <p className="text-xs text-amber-600 font-medium mt-1">Alege brandul pentru ușă dublă.</p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {/* Quantity */}
@@ -1776,7 +1835,10 @@ export default function Configurator() {
                 {/* Add to cart */}
                 <button
                   onClick={handleAddDoor}
-                  className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 text-sm transition shadow-sm shadow-indigo-500/30"
+                  disabled={!isUsaDublaReady}
+                  className={`flex items-center gap-1.5 rounded-lg text-white font-bold px-4 py-2 text-sm transition shadow-sm shadow-indigo-500/30 ${
+                    isUsaDublaReady ? "bg-indigo-600 hover:bg-indigo-700" : "bg-slate-300 cursor-not-allowed shadow-none"
+                  }`}
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1816,7 +1878,7 @@ export default function Configurator() {
                     {(["naturen", "erkado"] as const).map(b => (
                       <button
                         key={b}
-                        onClick={() => { setTocTunelBrand(b); setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false); }}
+                        onClick={() => { setTocTunelBrand(b); setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false); setTocVarianta("Standard"); }}
                         className={`px-3 py-2 rounded-lg text-xs font-semibold border transition ${
                           tocTunelBrand === b
                             ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
@@ -1991,7 +2053,7 @@ export default function Configurator() {
           <div className="grid grid-cols-2 gap-2 mt-2">
             <div>
               <FieldLabel>Variantă toc</FieldLabel>
-              <Combo value={tocVarianta} options={[...TOC_VARIANTE]} onChange={setTocVarianta} />
+              <Combo value={tocVarianta} options={tocVariantaOptions} onChange={setTocVarianta} />
             </div>
             <div>
               <FieldLabel>Standard toc</FieldLabel>
@@ -2110,9 +2172,9 @@ export default function Configurator() {
                             <option value="">— dr./stg. —</option>
                             {DESCHIDERI.map(o => <option key={o} value={o}>{o}</option>)}
                           </select>
-                          {d.usaDubla && d.tipUsaDubla && (
+                          {d.usaDubla && (d.tipUsaDubla || d.usaDublaBrand) && (
                             <span className="text-xs bg-indigo-100 border border-indigo-200 rounded px-1.5 py-0.5 text-indigo-700 font-medium">
-                              {d.tipUsaDubla}
+                              {d.usaDublaBrand === "erkado" ? "Erkado dublă" : d.tipUsaDubla}
                             </span>
                           )}
                           {d.standard === "P2112" && (

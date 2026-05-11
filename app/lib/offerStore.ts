@@ -47,6 +47,7 @@ export interface DoorLineItem {
   usaPrice: number;
   // Usa dubla
   usaDubla?: boolean;
+  usaDublaBrand?: "naturen" | "erkado";
   tipUsaDubla?: string;
   glisantaInchidere?: "carlig" | "fara";
   glisantaProfilOpt?: boolean;
@@ -139,7 +140,7 @@ export function emptyDoor(): Omit<DoorLineItem, "id" | "totalEur"> {
   return {
     finisaj: "", colectie: "", model: "", culoare: "", deschidere: "",
     standard: "Standard Polonez", usaObs: "", usaPrice: 0,
-    usaDubla: false, tipUsaDubla: undefined,
+    usaDubla: false, usaDublaBrand: undefined, tipUsaDubla: undefined,
     glisantaInchidere: undefined, glisantaProfilOpt: undefined, glisantaTocPret: undefined,
     addToc: false, tocFinisaj: "", tocColectie: "", tocModel: "", tocObs: "", tocPrice: 0,
     nrBal: "", balMod: "", balCol: "", balDim: "", ferPrice: 0,
