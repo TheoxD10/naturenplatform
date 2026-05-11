@@ -105,19 +105,31 @@ export default function OpciuniPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white rounded-xl p-1 border border-slate-200 shadow-sm w-fit">
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition ${
-                activeTab === t.key
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {tabs.map(t => {
+            const badge = t.key === 'modele' && Object.keys(doorPriceOverrides).length > 0
+              ? Object.keys(doorPriceOverrides).length
+              : null;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`relative px-5 py-2 rounded-lg text-sm font-semibold transition ${
+                  activeTab === t.key
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {t.label}
+                {badge !== null && (
+                  <span className={`ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                    activeTab === t.key ? 'bg-white/25 text-white' : 'bg-indigo-100 text-indigo-600'
+                  }`}>
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {loading || (activeTab === 'modele' && doorsLoading) ? (
