@@ -17,7 +17,7 @@ export async function GET() {
 
   for (const row of rows) {
     const [, l2, l3, l4, , , price] = row as [unknown, string, string, string, unknown, unknown, number];
-    if (!l2 || l2 === "Level 2" || !l4 || l4 === l3) continue;
+    if (!l2 || l2 === "Level 2" || !l3 || !l4 || l4 === l3) continue;
     if (!data[l2]) data[l2] = {};
     if (!data[l2][l3]) data[l2][l3] = {};
     data[l2][l3][l4] = typeof price === "number" ? price : null;

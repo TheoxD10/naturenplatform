@@ -40,6 +40,38 @@ function seedCosturi(): CosturiItem[] {
   return COSTURI_CONST.map(([label, price]) => ({ label, price }));
 }
 
+function mergeDefaultColors(existing: CuloriData, defaults: CuloriData): { merged: CuloriData; changed: boolean } {
+  const merged: CuloriData = { ...existing };
+  let changed = false;
+  for (const [finisaj, collections] of Object.entries(defaults)) {
+    if (!merged[finisaj]) {
+      merged[finisaj] = { ...collections };
+      changed = true;
+    } else {
+      let finisajChanged = false;
+      const mergedFin = { ...merged[finisaj] };
+      for (const [colectie, colors] of Object.entries(collections)) {
+        if (!mergedFin[colectie]) {
+          mergedFin[colectie] = colors;
+          finisajChanged = true;
+        } else {
+          const existingSet = new Set(mergedFin[colectie]);
+          const toAdd = colors.filter(c => !existingSet.has(c));
+          if (toAdd.length > 0) {
+            mergedFin[colectie] = [...mergedFin[colectie], ...toAdd];
+            finisajChanged = true;
+          }
+        }
+      }
+      if (finisajChanged) {
+        merged[finisaj] = mergedFin;
+        changed = true;
+      }
+    }
+  }
+  return { merged, changed };
+}
+
 export type { FerenerieItem, ManereItem, CosturiItem, CuloriData };
 
 export function useConfiguratorOptions() {
@@ -63,13 +95,14 @@ export function useConfiguratorOptions() {
       const fer = f ?? seedFeronerie();
       const man = m ?? seedManere();
       const cos = c ?? seedCosturi();
-      const cul = col ?? { ...CULORI_PER_COLECTIE };
+      const baseCul = col ?? { ...CULORI_PER_COLECTIE };
+      const { merged: cul, changed: culChanged } = mergeDefaultColors(baseCul, CULORI_PER_COLECTIE);
       const dpoData = dpo ?? {};
 
       if (!f) saveFeronerie(fer).catch(console.error);
       if (!m) saveManere(man).catch(console.error);
       if (!c) saveCosturi(cos).catch(console.error);
-      if (!col) saveCulori(cul).catch(console.error);
+      if (!col || culChanged) saveCulori(cul).catch(console.error);
 
       setFerenerieState(fer);
       setManereState(man);

@@ -175,7 +175,7 @@ export const CULORI_USA = [
 // Per-collection color options derived from Excel Proprietati sheet
 export const CULORI_PER_COLECTIE: Record<string, Record<string, string[]>> = {
   "FI3D": {
-    "Aristo":       ["Nuc", "Alb", "Kasmir", "Stejar Riviera", "Wenge Alb", "Stejar Pastel", "Silver Oak", "Stejar Sesil"],
+    "Aristo":       ["Stejar Gotic", "Carpen", "Nuc", "Alb", "Kasmir", "Stejar Riviera", "Stejar Pastel", "Wenge Alb", "Halifax"],
     "Arte":         ["Nuc", "Alb", "Kasmir", "Stejar Riviera", "Wenge Alb", "Stejar Pastel", "Silver Oak", "Stejar Sesil"],
     "Avens":        ["Nuc", "Alb", "Kasmir", "Stejar Riviera", "Wenge Alb", "Stejar Pastel", "Silver Oak", "Stejar Sesil"],
     "Carena":       ["Nuc", "Alb", "Kasmir", "Stejar Riviera", "Wenge Alb", "Stejar Pastel", "Silver Oak", "Stejar Sesil"],
@@ -205,6 +205,13 @@ export const CULORI_PER_COLECTIE: Record<string, Record<string, string[]>> = {
     "Venus":        ["Nuc", "Alb", "Kasmir", "Stejar Riviera", "Wenge Alb", "Stejar Pastel", "Silver Oak", "Stejar Sesil", "Argintiu", "Auriu", "Negru"],
     "Verano":       ["Nuc", "Alb", "Kasmir", "Stejar Riviera", "Wenge Alb", "Stejar Pastel", "Silver Oak", "Stejar Sesil"],
     "Vincia":       ["Nuc", "Alb", "Kasmir", "Stejar Riviera", "Wenge Alb", "Stejar Pastel", "Silver Oak", "Stejar Sesil", "Argintiu", "Auriu", "Negru"],
+    "Cara Line":    ["Stejar Riviera"],
+    "Tea Line":     ["Alb"],
+    "Disano Line":  ["Kasmir"],
+    "Lisbon Line":  ["Alb"],
+    "Grasso Line":  ["Alb"],
+    "Nola Line":    ["Wenge Alb"],
+    "Vienna Line":  ["Alb"],
   },
   "CPL": {
     "Altamura":    ["Wenge Dark St Cpl", "Stejar St Cpl", "Stejar Gri St Cpl", "Salvie St Cpl", "Piatra Gri St Cpl", "Negru St Cpl", "Verde Inchis St Cpl", "Bleumarin St Cpl", "Gri Deschis St Cpl", "Cappuccino St Cpl", "Antracita St Cpl", "Cenusiu St Cpl", "Alb St Cpl", "Grey Cpl", "Alb Cpl", "Antracita Satinata Cpl", "Nuc Classic Cpl", "Stejar Retro Cpl", "Stejar Classic Cpl"],
@@ -242,7 +249,11 @@ export const CULORI_PER_COLECTIE: Record<string, Record<string, string[]>> = {
     "Petunia":     ["Wenge Dark St Cpl", "Stejar St Cpl", "Stejar Grist St Cpl", "Antracita St Cpl", "Negru St Cpl", "Verde Inchis St Cpl", "Bleumarin St Cpl", "Alb St Cpl", "Gri Deschis St Cpl", "Cenusiu St Cpl", "Cappuccino St Cpl", "Salvie St Cpl", "Piatra Gri St Cpl"],
     "Powojnik":    ["Wenge Dark St Cpl", "Stejar St Cpl", "Stejar Grist St Cpl", "Antracita St Cpl", "Negru St Cpl", "Verde Inchis St Cpl", "Bleumarin St Cpl", "Alb St Cpl", "Gri Deschis St Cpl", "Cenusiu St Cpl", "Cappuccino St Cpl", "Salvie St Cpl", "Piatra Gri St Cpl"],
     "Sorano":      ["Wenge Dark St Cpl", "Stejar St Cpl", "Stejar Gri St Cpl", "Salvie St Cpl", "Piatra Gri St Cpl", "Negru St Cpl", "Verde Inchis St Cpl", "Bleumarin St Cpl", "Gri Deschis St Cpl", "Cappuccino St Cpl", "Antracita St Cpl", "Cenusiu St Cpl", "Alb St Cpl", "Grey Cpl", "Alb Cpl", "Antracita Satinata Cpl", "Nuc Classic Cpl", "Stejar Retro Cpl", "Stejar Classic Cpl"],
-    "Surmia":      ["Wenge Dark St Cpl", "Stejar St Cpl", "Stejar Grist St Cpl", "Antracita St Cpl", "Negru St Cpl", "Verde Inchis St Cpl", "Bleumarin St Cpl", "Alb St Cpl", "Gri Deschis St Cpl", "Cenusiu St Cpl", "Cappuccino St Cpl", "Salvie St Cpl", "Piatra Gri St Cpl"],
+    "Surmia":       ["Wenge Dark St Cpl", "Stejar St Cpl", "Stejar Grist St Cpl", "Antracita St Cpl", "Negru St Cpl", "Verde Inchis St Cpl", "Bleumarin St Cpl", "Alb St Cpl", "Gri Deschis St Cpl", "Cenusiu St Cpl", "Cappuccino St Cpl", "Salvie St Cpl", "Piatra Gri St Cpl"],
+    "Amarylis Line": ["Alb St Cpl"],
+    "Peonia Line":   ["Cappuccino St Cpl"],
+    "Nemezja Line":  ["Gri Deschis St Cpl"],
+    "Hiacynt Line":  ["White"],
   },
   "GREKO": {
     "Altamura":  ["Nuc Greko", "Stejar Mediu Greko", "Stejar Auriu Greko", "Stejar Greko", "Sonoma Greko", "Salcam Deschis Greko", "Alb Greko", "Alb Ca Zapada Greko"],
@@ -271,7 +282,8 @@ export const CULORI_PER_COLECTIE: Record<string, Record<string, string[]>> = {
     "Nemezja":   ["Nuc Greko", "Stejar Mediu Greko", "Stejar Greko", "Sonoma Greko", "Stejar Gri Greko", "Alb Greko", "Alb Ca Zapada Greko"],
     "Peonia":    ["Nuc Greko", "Stejar Mediu Greko", "Stejar Auriu Greko", "Stejar Greko", "Sonoma Greko", "Stejar Gri Greko", "Alb Greko", "Alb Ca Zapada Greko"],
     "Petunia":   ["Nuc Greko", "Stejar Mediu Greko", "Stejar Auriu Greko", "Stejar Greko", "Sonoma Greko", "Stejar Gri Greko", "Alb Greko", "Alb Ca Zapada Greko"],
-    "Sorano":    ["Nuc Greko", "Stejar Mediu Greko", "Stejar Auriu Greko", "Sonoma Greko", "Salcam Deschis Greko", "Stejar Gri Greko", "Alb Greko", "Alb Ca Zapada Greko"],
+    "Sorano":      ["Nuc Greko", "Stejar Mediu Greko", "Stejar Auriu Greko", "Sonoma Greko", "Salcam Deschis Greko", "Stejar Gri Greko", "Alb Greko", "Alb Ca Zapada Greko"],
+    "Nemezja Line": ["Alb Greko"],
   },
   "Premium": {
     "Altamura":  ["Stejar Premium", "Artar Gri Premium", "Scoarta Alba Premium", "Beton Premium", "Nuc Classic Premium", "Frasin Grafit Premium", "Alb Premium", "Stejar Natur Premium", "Stejar Natur Transversal Premium"],
@@ -311,10 +323,12 @@ export const CULORI_PER_COLECTIE: Record<string, Record<string, string[]>> = {
     "Powojnik":  ["Stejar Natur Premium", "Stejar Premium", "Frasin Grafit Premium", "Nuc Classic Premium", "Artar Gri Premium", "Scoarta Alba Premium", "Alb Premium"],
     "Sorano":    ["Stejar Premium", "Artar Gri Premium", "Scoarta Alba Premium", "Beton Premium", "Nuc Classic Premium", "Frasin Grafit Premium", "Alb Premium", "Stejar Natur Premium", "Stejar Natur Transversal Premium"],
     "Surmia":    ["Stejar Natur Premium", "Stejar Premium", "Frasin Grafit Premium", "Nuc Classic Premium", "Artar Gri Premium", "Scoarta Alba Premium", "Alb Premium"],
-    "Uno":       ["Stejar Premium", "Stejar Natur Premium", "Stejar Natur Transversal Premium", "Frasin Grafit Premium", "Nuc Classic Premium", "Beton Premium", "Artar Gri Premium", "Scoarta Alba Premium", "Alb Premium"],
+    "Uno":           ["Stejar Premium", "Stejar Natur Premium", "Stejar Natur Transversal Premium", "Frasin Grafit Premium", "Nuc Classic Premium", "Beton Premium", "Artar Gri Premium", "Scoarta Alba Premium", "Alb Premium"],
+    "Laurencja Line": ["Alb Premium", "Sticla Neagra"],
   },
   "Delight": {
-    "Delight": ["Nuc", "Alb", "Kasmir", "Stejar Riviera", "Wenge Alb", "Stejar Pastel", "Silver Oak", "Stejar Sesil"],
+    "Delight":      ["Nuc", "Alb", "Kasmir", "Stejar Riviera", "Wenge Alb", "Stejar Pastel", "Silver Oak", "Stejar Sesil"],
+    "Delight Line": ["Sticla Transparenta", "Sticla Sablat"],
   },
   "VOPSIT UV": {
     "Amarylis":  ["Alb Titan Uv"],

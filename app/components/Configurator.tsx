@@ -380,7 +380,7 @@ function Divider({ label }: { label: string }) {
   );
 }
 
-function MontajSection({ montaj, onChange }: { montaj: MontajEntry[]; onChange: (m: MontajEntry[]) => void }) {
+function MontajSection({ montaj, onChange, itemLabel = "montaj" }: { montaj: MontajEntry[]; onChange: (m: MontajEntry[]) => void; itemLabel?: string }) {
   function addRow() { onChange([...montaj, { name: "", qty: 1, priceRon: 0 }]); }
   function removeRow(i: number) { onChange(montaj.filter((_, idx) => idx !== i)); }
   function updateRow(i: number, patch: Partial<MontajEntry>) {
@@ -393,14 +393,14 @@ function MontajSection({ montaj, onChange }: { montaj: MontajEntry[]; onChange: 
           onClick={addRow}
           className="text-xs text-slate-400 hover:text-indigo-600 border border-dashed border-slate-300 rounded-lg px-3 py-2 w-full text-center transition"
         >
-          + Adaugă intrare montaj
+          + Adaugă intrare {itemLabel}
         </button>
       ) : (
         <>
           <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center mb-1">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Denumire</span>
             <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 w-14 text-center">Buc.</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 w-20 text-center">Preț RON</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 w-24 text-center">Preț RON (cu TVA)</span>
             <span className="w-6" />
           </div>
           {montaj.map((m, i) => (
@@ -421,7 +421,7 @@ function MontajSection({ montaj, onChange }: { montaj: MontajEntry[]; onChange: 
                 type="number" min="0" step="0.01" placeholder="0"
                 value={m.priceRon || ""}
                 onChange={e => updateRow(i, { priceRon: parseFloat(e.target.value) || 0 })}
-                className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                className="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
               <button onClick={() => removeRow(i)} className="text-slate-400 hover:text-red-500 transition w-6 flex justify-center">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -545,7 +545,8 @@ export default function Configurator() {
   const [advancePercent, setAdvancePercent] = useState("50");
   const [observatii, setObservatii]         = useState("");
   const [ofertaTab, setOfertaTab]           = useState<"oferta"|"client"|"observatii">("oferta");
-  const [ofertaMontaj, setOfertaMontaj]     = useState<MontajEntry[]>([]);
+  const [ofertaMontaj, setOfertaMontaj]       = useState<MontajEntry[]>([]);
+  const [ofertaTransport, setOfertaTransport] = useState<MontajEntry[]>([]);
 
   useEffect(() => {
     fetch("/api/data")
@@ -713,7 +714,8 @@ export default function Configurator() {
     ? usaMontaj.filter(m => m.name.trim() && m.priceRon > 0).reduce((s, m) => s + m.priceRon * (m.qty || 1), 0)
     : 0;
   const totalMontajRon = cartMontajRon + currentMontajRon;
-  const totalBeforeDiscount = grandTotal * rate + totalMontajRon;
+  const totalTransportRon = ofertaTransport.filter(m => m.name.trim() && m.priceRon > 0).reduce((s, m) => s + m.priceRon * (m.qty || 1), 0);
+  const totalBeforeDiscount = grandTotal * rate + totalMontajRon + totalTransportRon;
   const discountAmtRon = discountType === "percent"
     ? totalBeforeDiscount * (parseFloat(discountPercent) / 100)
     : parseFloat(discountFlat) || 0;
@@ -1217,7 +1219,7 @@ export default function Configurator() {
       }
       for (const m of d.montaj ?? []) {
         if (m.name.trim() && m.priceRon > 0) {
-          items.push({ name: `Montaj: ${m.name}`, um: "buc", qty: m.qty, priceRon: m.priceRon });
+          items.push({ name: `Montaj: ${m.name}`, um: "buc", qty: m.qty, priceRon: m.priceRon / 1.21 });
         }
       }
     }
@@ -1242,14 +1244,20 @@ export default function Configurator() {
       });
       for (const m of t.montaj ?? []) {
         if (m.name.trim() && m.priceRon > 0) {
-          items.push({ name: `Montaj: ${m.name}`, um: "buc", qty: m.qty, priceRon: m.priceRon });
+          items.push({ name: `Montaj: ${m.name}`, um: "buc", qty: m.qty, priceRon: m.priceRon / 1.21 });
         }
       }
     }
 
     for (const m of ofertaMontaj) {
       if (m.name.trim() && m.priceRon > 0) {
-        items.push({ name: `Montaj: ${m.name}`, um: "buc", qty: m.qty || 1, priceRon: m.priceRon });
+        items.push({ name: `Montaj: ${m.name}`, um: "buc", qty: m.qty || 1, priceRon: m.priceRon / 1.21 });
+      }
+    }
+
+    for (const m of ofertaTransport) {
+      if (m.name.trim() && m.priceRon > 0) {
+        items.push({ name: `Transport: ${m.name}`, um: "buc", qty: m.qty || 1, priceRon: m.priceRon / 1.21 });
       }
     }
 
@@ -1299,6 +1307,7 @@ export default function Configurator() {
       totalEur: grandTotal,
       totalRon,
       montajRon: totalMontajRon,
+      transportRon: totalTransportRon,
       doorsCount: doorsForPdf.reduce((s, d) => s + (d.qty ?? 1), 0),
       doors: doorsForPdf,
       pdfGeneratedAt: new Date().toISOString(),
@@ -2029,11 +2038,16 @@ export default function Configurator() {
 
       {/* ── PASUL 4: Montaj ───────────────────────────────── */}
       <StepSection step={4} title="Montaj" icon="🔧" accent="slate">
-        <MontajSection montaj={ofertaMontaj} onChange={setOfertaMontaj} />
+        <MontajSection montaj={ofertaMontaj} onChange={setOfertaMontaj} itemLabel="montaj" />
       </StepSection>
 
-      {/* ── PASUL 5: Detalii ofertă ───────────────────────── */}
-      <StepSection step={(cartDoors.length > 0 || cartTocs.length > 0) ? 5 : 3} title="Detalii Ofertă & Client" icon="📄" accent="slate">
+      {/* ── PASUL 5: Transport ────────────────────────────── */}
+      <StepSection step={5} title="Transport" icon="🚚" accent="slate">
+        <MontajSection montaj={ofertaTransport} onChange={setOfertaTransport} itemLabel="transport" />
+      </StepSection>
+
+      {/* ── PASUL 6: Detalii ofertă ───────────────────────── */}
+      <StepSection step={(cartDoors.length > 0 || cartTocs.length > 0) ? 6 : 4} title="Detalii Ofertă & Client" icon="📄" accent="slate">
         {/* Tab bar */}
         <div className="flex gap-1 mb-4 border-b border-slate-200">
           {(["oferta", "client", "observatii"] as const).map((tab) => (
@@ -2148,9 +2162,17 @@ export default function Configurator() {
             </div>
             {totalMontajRon > 0 && (
               <div>
-                <p className="text-xs text-green-600 font-medium mb-0.5">+ Montaj</p>
+                <p className="text-xs text-green-600 font-medium mb-0.5">+ Montaj <span className="text-[10px] text-slate-400">(cu TVA)</span></p>
                 <p className="text-xl font-bold text-green-700">
                   {totalMontajRon.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RON
+                </p>
+              </div>
+            )}
+            {totalTransportRon > 0 && (
+              <div>
+                <p className="text-xs text-blue-600 font-medium mb-0.5">+ Transport <span className="text-[10px] text-slate-400">(cu TVA)</span></p>
+                <p className="text-xl font-bold text-blue-700">
+                  {totalTransportRon.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RON
                 </p>
               </div>
             )}

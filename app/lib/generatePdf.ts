@@ -135,7 +135,7 @@ export function generateOfferPdf(data: OfferData): void {
 
   // ── Build items ────────────────────────────────────────────
   y += 5;
-  const subtotal = data.items.reduce((s, i) => s + i.priceRon, 0);
+  const subtotal = data.items.reduce((s, i) => s + i.priceRon * i.qty, 0);
   const discountAmt = data.discountAmt > 0 ? -data.discountAmt : 0;
   const totalFaraTva = subtotal + discountAmt;
   const tvaAmt = totalFaraTva * TVA;
@@ -143,16 +143,17 @@ export function generateOfferPdf(data: OfferData): void {
 
   const tableBody: (string | { content: string; styles: object })[][] = data.items.map((item, i) => {
     const nameLine = item.obs ? `${n(item.name)}\nObs: ${n(item.obs)}` : n(item.name);
-    const priceFara = item.priceRon;
-    const priceCu = item.priceRon * (1 + TVA);
+    const unitFara = item.priceRon;
+    const valFara  = item.priceRon * item.qty;
+    const valCu    = valFara * (1 + TVA);
     return [
       String(i + 1),
       nameLine,
       n(item.um),
       String(item.qty),
-      fmt(priceFara),
-      fmt(priceFara),
-      fmt(priceCu),
+      fmt(unitFara),
+      fmt(valFara),
+      fmt(valCu),
     ];
   });
 
@@ -258,6 +259,32 @@ export function generateOfferPdf(data: OfferData): void {
 
   y = Math.max(yA, yT + 8) + 8;
 
+  // ── Observatii (before terms, styled in red box) ───────────
+  if (data.observatii?.trim()) {
+    const obsText = doc.splitTextToSize(n(data.observatii.trim()), contentW - 6) as string[];
+    const boxH = 6 + obsText.length * 4.5 + 3;
+
+    doc.setDrawColor(180, 30, 30);
+    doc.setFillColor(255, 245, 245);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(margin, y, contentW, boxH, 2, 2, "FD");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(180, 30, 30);
+    doc.text(n("! OBSERVATII:"), margin + 3, y + 5);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(140, 20, 20);
+    let yObs = y + 5 + 4.5;
+    for (const line of obsText) {
+      doc.text(line, margin + 3, yObs);
+      yObs += 4.5;
+    }
+    y += boxH + 6;
+  }
+
   // ── Terms ──────────────────────────────────────────────────
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.3);
@@ -288,22 +315,6 @@ export function generateOfferPdf(data: OfferData): void {
       y += 4.5;
     }
     y += 1;
-  }
-
-  if (data.observatii?.trim()) {
-    y += 3;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(30, 30, 30);
-    doc.text(n("Observatii:"), margin, y);
-    y += 5;
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(50, 50, 50);
-    const obsLines = doc.splitTextToSize(n(data.observatii.trim()), contentW);
-    for (const line of obsLines as string[]) {
-      doc.text(line, margin, y);
-      y += 4.5;
-    }
   }
 
   // ── Save ───────────────────────────────────────────────────
