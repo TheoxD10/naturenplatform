@@ -607,17 +607,25 @@ export default function Configurator() {
   const tocV2 = (doorsData["TOC_V2"] ?? {}) as Record<string, Record<string, Record<string, any>>>;
   const tocTipOpts   = Object.keys(tocV2);
   const tocAllReglaj = tocFinisaj ? Object.keys(tocV2[tocFinisaj] ?? {}).filter(k => k !== "__") : [];
+  const isTocSistemAscuns = tocFinisaj === "Toc sistem ascuns";
 
   const tocShowReglaj = tocAllReglaj.length >= 2;
-  const effectiveTocColectie = tocBrand === "erkado"
+  const effectiveTocColectie = isTocSistemAscuns
+    ? "__"
+    : tocBrand === "erkado"
     ? ""
     : tocShowReglaj
     ? tocColectie
     : tocAllReglaj.length === 1
     ? tocAllReglaj[0]
     : "__";
-  const tocFinisajOpts = (tocBrand === "naturen" && tocFinisaj && effectiveTocColectie)
+  const tocFinisajOpts = (tocFinisaj && effectiveTocColectie)
     ? Object.keys(tocV2[tocFinisaj]?.[effectiveTocColectie] ?? {})
+        .filter(opt => {
+          if (!isTocSistemAscuns) return true;
+          if (!tocBrand) return false;
+          return opt.toLowerCase().includes(tocBrand);
+        })
     : [];
   const erkadoReglajPrices = Object.fromEntries(ERKADO_REGLAJ.map(r => [r.range, r.priceEur]));
 
@@ -652,10 +660,14 @@ export default function Configurator() {
   const usaPrice = (finisaj && colectie && model)
     ? (doorPriceOverrides[`${finisaj}|${colectie}|${model}`] ?? doorsData[finisaj]?.[colectie]?.[model] ?? null)
     : null;
-  const erkadoReglajPrice = tocBrand === "erkado"
+  const erkadoReglajPrice = tocBrand === "erkado" && !isTocSistemAscuns
     ? (ERKADO_REGLAJ.find(r => r.range === tocColectie)?.priceEur ?? null)
     : null;
-  const tocPrice = tocBrand === "erkado"
+  const tocPrice = isTocSistemAscuns
+    ? (tocFinisaj && effectiveTocColectie && tocModel)
+      ? (tocV2[tocFinisaj]?.[effectiveTocColectie]?.[tocModel] ?? null)
+      : null
+    : tocBrand === "erkado"
     ? erkadoReglajPrice
     : (tocFinisaj && tocFinisaj !== "Toc tunel" && effectiveTocColectie && tocModel)
     ? (tocV2[tocFinisaj]?.[effectiveTocColectie]?.[tocModel] ?? null)
@@ -1986,7 +1998,7 @@ export default function Configurator() {
                     ))}
                   </div>
                 </div>
-                {tocBrand === "erkado" && (
+                {tocBrand === "erkado" && !isTocSistemAscuns && (
                   <div className="flex-1">
                     <FieldLabel>Reglaj</FieldLabel>
                     <Combo value={tocColectie} options={ERKADO_REGLAJ.map(r => r.range)} onChange={handleTocReglaj}
