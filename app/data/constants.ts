@@ -367,6 +367,27 @@ export const CULORI_PER_COLECTIE: Record<string, Record<string, string[]>> = {
 
 export const DESCHIDERI = ["Stanga", "Dreapta"];
 
+export const STANDARD_OPTIONS = ["Standard Polonez", "Standard Ceh", "P2112"] as const;
+export type StandardOption = typeof STANDARD_OPTIONS[number];
+
+export const USA_DUBLA_TYPES = [
+  "Foi Ușă Dublă",
+  "Foi Ușă Debară",
+  "Glisantă Simplă (max 900mm)",
+  "Glisantă Dublă (max 1800mm)",
+] as const;
+export type UsaDublaType = typeof USA_DUBLA_TYPES[number];
+
+export const TOC_VARIANTE = [
+  "Standard",
+  "Dublu (×2)",
+  "Debară Reglabil (×1.5)",
+  "Debară Fix (×2)",
+  "Tunel Reglabil Drept (+11 EUR)",
+  "Tunel Dublu Regl. Drept (×2, +22 EUR)",
+] as const;
+export type TocVarianta = typeof TOC_VARIANTE[number];
+
 // Standard door leaf widths (mm)
 export const DIM_LATIMI = ["600", "700", "800", "900", "1000"];
 // Standard door leaf heights (mm)
@@ -396,7 +417,32 @@ export const ERKADO_COLLECTIONS = ["CPL", "Premium", "Greko"];
 export const ERKADO_TOC_TUNEL_FINISAJE = ["GREKO", "CPL/PREMIUM", "CPL 0.2", "LACUIT"] as const;
 export type ErkadoTocTunelFinisaj = typeof ERKADO_TOC_TUNEL_FINISAJE[number];
 
+// Toc tunel Erkado + Toc reglabil cu falt (same price table)
 export const ERKADO_TOC_TUNEL: { range: string; GREKO: number; "CPL/PREMIUM": number; "CPL 0.2": number; LACUIT: number }[] = [
+  { range: "65 - 80",   GREKO: 122, "CPL/PREMIUM": 135, "CPL 0.2": 148, LACUIT: 228 },
+  { range: "80 - 100",  GREKO: 122, "CPL/PREMIUM": 135, "CPL 0.2": 148, LACUIT: 228 },
+  { range: "100 - 120", GREKO: 125, "CPL/PREMIUM": 137, "CPL 0.2": 151, LACUIT: 238 },
+  { range: "120 - 140", GREKO: 129, "CPL/PREMIUM": 142, "CPL 0.2": 155, LACUIT: 246 },
+  { range: "140 - 160", GREKO: 135, "CPL/PREMIUM": 147, "CPL 0.2": 161, LACUIT: 255 },
+  { range: "160 - 180", GREKO: 141, "CPL/PREMIUM": 154, "CPL 0.2": 168, LACUIT: 265 },
+  { range: "180 - 200", GREKO: 144, "CPL/PREMIUM": 156, "CPL 0.2": 170, LACUIT: 274 },
+  { range: "200 - 220", GREKO: 149, "CPL/PREMIUM": 162, "CPL 0.2": 175, LACUIT: 282 },
+  { range: "220 - 240", GREKO: 154, "CPL/PREMIUM": 167, "CPL 0.2": 180, LACUIT: 292 },
+  { range: "240 - 260", GREKO: 159, "CPL/PREMIUM": 171, "CPL 0.2": 186, LACUIT: 301 },
+  { range: "260 - 280", GREKO: 164, "CPL/PREMIUM": 176, "CPL 0.2": 190, LACUIT: 310 },
+  { range: "280 - 300", GREKO: 173, "CPL/PREMIUM": 187, "CPL 0.2": 200, LACUIT: 331 },
+  { range: "300 - 340", GREKO: 178, "CPL/PREMIUM": 191, "CPL 0.2": 204, LACUIT: 342 },
+  { range: "340 - 360", GREKO: 196, "CPL/PREMIUM": 208, "CPL 0.2": 222, LACUIT: 353 },
+  { range: "360 - 380", GREKO: 201, "CPL/PREMIUM": 214, "CPL 0.2": 227, LACUIT: 359 },
+  { range: "380 - 400", GREKO: 211, "CPL/PREMIUM": 223, "CPL 0.2": 237, LACUIT: 372 },
+  { range: "400 - 420", GREKO: 216, "CPL/PREMIUM": 228, "CPL 0.2": 242, LACUIT: 387 },
+];
+
+// Toc reglabil cu falt — same price table as Toc tunel Erkado
+export const ERKADO_TOC_CU_FALT = ERKADO_TOC_TUNEL;
+
+// Toc reglabil fara falt Erkado
+export const ERKADO_TOC_FARA_FALT: { range: string; GREKO: number; "CPL/PREMIUM": number; "CPL 0.2": number; LACUIT: number }[] = [
   { range: "80 - 95",   GREKO: 250, "CPL/PREMIUM": 266, "CPL 0.2": 279, LACUIT: 351 },
   { range: "95 - 115",  GREKO: 250, "CPL/PREMIUM": 266, "CPL 0.2": 279, LACUIT: 351 },
   { range: "115 - 135", GREKO: 250, "CPL/PREMIUM": 266, "CPL 0.2": 279, LACUIT: 351 },
@@ -414,6 +460,123 @@ export const ERKADO_TOC_TUNEL: { range: string; GREKO: number; "CPL/PREMIUM": nu
   { range: "375 - 395", GREKO: 340, "CPL/PREMIUM": 354, "CPL 0.2": 369, LACUIT: 468 },
   { range: "395 - 415", GREKO: 340, "CPL/PREMIUM": 354, "CPL 0.2": 369, LACUIT: 468 },
 ];
+
+// Toc cu reversie Erkado (3 columns)
+export const ERKADO_TOC_REVERSIE_FINISAJE = ["GREKO", "CPL ST/PREMIUM", "LACUITE"] as const;
+export type ErkadoTocRevesieFinisaj = typeof ERKADO_TOC_REVERSIE_FINISAJE[number];
+export const ERKADO_TOC_REVERSIE: { range: string; GREKO: number; "CPL ST/PREMIUM": number; LACUITE: number }[] = [
+  { range: "75 - 95",   GREKO: 361, "CPL ST/PREMIUM": 377, LACUITE: 475 },
+  { range: "95 - 115",  GREKO: 361, "CPL ST/PREMIUM": 377, LACUITE: 475 },
+  { range: "115 - 135", GREKO: 361, "CPL ST/PREMIUM": 377, LACUITE: 475 },
+  { range: "135 - 155", GREKO: 373, "CPL ST/PREMIUM": 387, LACUITE: 493 },
+  { range: "155 - 175", GREKO: 373, "CPL ST/PREMIUM": 387, LACUITE: 493 },
+  { range: "175 - 195", GREKO: 373, "CPL ST/PREMIUM": 387, LACUITE: 493 },
+  { range: "195 - 215", GREKO: 379, "CPL ST/PREMIUM": 396, LACUITE: 513 },
+  { range: "215 - 235", GREKO: 379, "CPL ST/PREMIUM": 396, LACUITE: 513 },
+  { range: "235 - 255", GREKO: 386, "CPL ST/PREMIUM": 403, LACUITE: 532 },
+  { range: "255 - 295", GREKO: 412, "CPL ST/PREMIUM": 428, LACUITE: 560 },
+  { range: "295 - 315", GREKO: 412, "CPL ST/PREMIUM": 428, LACUITE: 560 },
+  { range: "315 - 335", GREKO: 437, "CPL ST/PREMIUM": 453, LACUITE: 580 },
+  { range: "335 - 355", GREKO: 437, "CPL ST/PREMIUM": 453, LACUITE: 580 },
+];
+
+// Toc reglabil suprapunere Erkado (2 columns)
+export const ERKADO_TOC_SUPRAPUNERE_FINISAJE = ["GREKO", "CPL ST/PREMIUM"] as const;
+export type ErkadoTocSuprapunereFinisaj = typeof ERKADO_TOC_SUPRAPUNERE_FINISAJE[number];
+export const ERKADO_TOC_SUPRAPUNERE: { range: string; GREKO: number; "CPL ST/PREMIUM": number }[] = [
+  { range: "80 - 100",  GREKO: 162, "CPL ST/PREMIUM": 188 },
+  { range: "100 - 120", GREKO: 167, "CPL ST/PREMIUM": 192 },
+  { range: "120 - 140", GREKO: 173, "CPL ST/PREMIUM": 200 },
+  { range: "140 - 160", GREKO: 182, "CPL ST/PREMIUM": 210 },
+  { range: "160 - 180", GREKO: 192, "CPL ST/PREMIUM": 219 },
+  { range: "180 - 200", GREKO: 206, "CPL ST/PREMIUM": 233 },
+  { range: "200 - 220", GREKO: 221, "CPL ST/PREMIUM": 247 },
+  { range: "220 - 240", GREKO: 230, "CPL ST/PREMIUM": 257 },
+  { range: "240 - 260", GREKO: 240, "CPL ST/PREMIUM": 267 },
+  { range: "260 - 280", GREKO: 250, "CPL ST/PREMIUM": 276 },
+  { range: "280 - 300", GREKO: 258, "CPL ST/PREMIUM": 285 },
+  { range: "300 - 320", GREKO: 269, "CPL ST/PREMIUM": 296 },
+  { range: "320 - 340", GREKO: 278, "CPL ST/PREMIUM": 305 },
+  { range: "340 - 360", GREKO: 288, "CPL ST/PREMIUM": 315 },
+  { range: "360 - 380", GREKO: 298, "CPL ST/PREMIUM": 324 },
+  { range: "380 - 400", GREKO: 311, "CPL ST/PREMIUM": 338 },
+  { range: "400 - 420", GREKO: 326, "CPL ST/PREMIUM": 353 },
+  { range: "420 - 440", GREKO: 341, "CPL ST/PREMIUM": 367 },
+];
+
+// Tocuri metalice Erkado (single price, no finisaj selection)
+export const ERKADO_TOC_METALIC: { range: string; price: number }[] = [
+  { range: "95 - 125",  price: 409 },
+  { range: "125 - 155", price: 434 },
+  { range: "155 - 185", price: 470 },
+  { range: "185 - 215", price: 506 },
+  { range: "215 - 245", price: 542 },
+  { range: "245 - 275", price: 579 },
+  { range: "275 - 305", price: 628 },
+];
+
+// All special Erkado-only toc types (not Toc tunel which has brand selector)
+export const ERKADO_SPECIAL_TOC_TYPES = [
+  "Toc reglabil cu falt",
+  "Toc reglabil fara falt",
+  "Toc cu reversie",
+  "Toc reglabil suprapunere",
+  "Toc metalic",
+] as const;
+export type ErkadoSpecialTocType = typeof ERKADO_SPECIAL_TOC_TYPES[number];
+
+export function getErkadoSpecialTocRanges(tipToc: string): string[] {
+  if (tipToc === "Toc reglabil cu falt") return ERKADO_TOC_CU_FALT.map(e => e.range);
+  if (tipToc === "Toc reglabil fara falt") return ERKADO_TOC_FARA_FALT.map(e => e.range);
+  if (tipToc === "Toc cu reversie") return ERKADO_TOC_REVERSIE.map(e => e.range);
+  if (tipToc === "Toc reglabil suprapunere") return ERKADO_TOC_SUPRAPUNERE.map(e => e.range);
+  if (tipToc === "Toc metalic") return ERKADO_TOC_METALIC.map(e => e.range);
+  return [];
+}
+
+export function getErkadoSpecialTocFinisaje(tipToc: string): string[] {
+  if (tipToc === "Toc reglabil cu falt" || tipToc === "Toc reglabil fara falt")
+    return [...ERKADO_TOC_TUNEL_FINISAJE];
+  if (tipToc === "Toc cu reversie") return [...ERKADO_TOC_REVERSIE_FINISAJE];
+  if (tipToc === "Toc reglabil suprapunere") return [...ERKADO_TOC_SUPRAPUNERE_FINISAJE];
+  return []; // Toc metalic has no finisaj
+}
+
+export function getErkadoSpecialTocPrice(tipToc: string, range: string, finisaj: string): number | null {
+  if (tipToc === "Toc reglabil cu falt") {
+    const e = ERKADO_TOC_CU_FALT.find(r => r.range === range);
+    return e ? (e[finisaj as keyof typeof e] as number ?? null) : null;
+  }
+  if (tipToc === "Toc reglabil fara falt") {
+    const e = ERKADO_TOC_FARA_FALT.find(r => r.range === range);
+    return e ? (e[finisaj as keyof typeof e] as number ?? null) : null;
+  }
+  if (tipToc === "Toc cu reversie") {
+    const e = ERKADO_TOC_REVERSIE.find(r => r.range === range);
+    return e ? (e[finisaj as keyof typeof e] as number ?? null) : null;
+  }
+  if (tipToc === "Toc reglabil suprapunere") {
+    const e = ERKADO_TOC_SUPRAPUNERE.find(r => r.range === range);
+    return e ? (e[finisaj as keyof typeof e] as number ?? null) : null;
+  }
+  if (tipToc === "Toc metalic") {
+    const e = ERKADO_TOC_METALIC.find(r => r.range === range);
+    return e ? e.price : null;
+  }
+  return null;
+}
+
+export function getErkadoSpecialTocRangePrices(tipToc: string, finisaj: string): Record<string, number | null> {
+  return Object.fromEntries(
+    getErkadoSpecialTocRanges(tipToc).map(r => [r, getErkadoSpecialTocPrice(tipToc, r, finisaj)])
+  );
+}
+
+export function getErkadoSpecialTocFinisajPrices(tipToc: string, range: string): Record<string, number | null> {
+  return Object.fromEntries(
+    getErkadoSpecialTocFinisaje(tipToc).map(f => [f, getErkadoSpecialTocPrice(tipToc, range, f)])
+  );
+}
 // Standard wall thicknesses (mm)
 export const DIM_GROSIMI_PERETE = ["100", "115", "120", "125", "150", "175", "200", "250", "300", "350"];
 // Reglaj toc ranges based on wall thickness

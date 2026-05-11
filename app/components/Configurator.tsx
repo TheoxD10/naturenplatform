@@ -5,10 +5,19 @@ import {
   FINISAJ_ORDER,
   NONE_OPT,
   DESCHIDERI,
+  STANDARD_OPTIONS,
+  USA_DUBLA_TYPES,
+  TOC_VARIANTE,
   ERKADO_REGLAJ,
   ERKADO_TOC_TUNEL,
   ERKADO_TOC_TUNEL_FINISAJE,
   type ErkadoTocTunelFinisaj,
+  ERKADO_SPECIAL_TOC_TYPES,
+  getErkadoSpecialTocRanges,
+  getErkadoSpecialTocFinisaje,
+  getErkadoSpecialTocPrice,
+  getErkadoSpecialTocRangePrices,
+  getErkadoSpecialTocFinisajPrices,
   BROASCA_TIPURI_HW,
   BROASCA_DIMENSIUNI,
   BROASCA_CULORI_HW,
@@ -472,6 +481,13 @@ export default function Configurator() {
   const [model, setModel]         = useState("");
   const [culoare, setCuloare]     = useState("");
   const [deschidere, setDeschidere] = useState("");
+  const [standard, setStandard]     = useState("Standard Polonez");
+  // Usa dubla
+  const [usaDubla, setUsaDubla]           = useState(false);
+  const [tipUsaDubla, setTipUsaDubla]     = useState("");
+  const [glisantaInchidere, setGlisantaInchidere] = useState<"carlig" | "fara">("carlig");
+  const [glisantaProfilOpt, setGlisantaProfilOpt] = useState(false);
+  const [glisantaTocPret, setGlisantaTocPret]   = useState("");
   const [usaObs, setUsaObs]       = useState("");
   const [currentQty, setCurrentQty] = useState(1);
 
@@ -510,6 +526,14 @@ export default function Configurator() {
   const [tocTunelErkadoReglaj, setTocTunelErkadoReglaj] = useState("");
   const [tocTunelErkadoFinisaj, setTocTunelErkadoFinisaj] = useState<ErkadoTocTunelFinisaj | "">("");
   const [tocTunelDubla, setTocTunelDubla]             = useState(false);
+
+  // Special Erkado toc types (non-tunel)
+  const [erkadoSpecialReglaj, setErkadoSpecialReglaj] = useState("");
+  const [erkadoSpecialFinisaj, setErkadoSpecialFinisaj] = useState("");
+
+  // Toc Standard + Varianta
+  const [tocStandard, setTocStandard]   = useState("Standard Polonez");
+  const [tocVarianta, setTocVarianta]   = useState("Standard");
 
   // Montaj entries
   const [usaMontaj, setUsaMontaj] = useState<MontajEntry[]>([]);
@@ -653,12 +677,58 @@ export default function Configurator() {
   const tocTunelBasePrice = tocFinisaj === "Toc tunel"
     ? (tocTunelBrand === "erkado" ? erkadoTocTunelBasePrice : tocTunelNatuurenBase)
     : null;
+
+  // Special Erkado toc types
+  const isErkadoSpecialType = (ERKADO_SPECIAL_TOC_TYPES as readonly string[]).includes(tocFinisaj);
+  const erkadoSpecialTocPrice = isErkadoSpecialType && erkadoSpecialReglaj
+    ? getErkadoSpecialTocPrice(tocFinisaj, erkadoSpecialReglaj, erkadoSpecialFinisaj)
+    : null;
+
   const effectiveTocPrice = tocFinisaj === "Toc tunel"
-    ? (tocTunelBasePrice !== null ? Math.round(tocTunelBasePrice * (tocTunelDubla ? 1.3 : 1) * 100) / 100 : null)
+    ? (tocTunelBasePrice !== null ? Math.round(tocTunelBasePrice * 100) / 100 : null)
+    : isErkadoSpecialType
+    ? erkadoSpecialTocPrice
     : tocPrice;
+
+  // Toc varianta multiplier
+  const tocWithVarianta = (() => {
+    const base = effectiveTocPrice;
+    if (base === null) return null;
+    if (tocVarianta === "Dublu (×2)") return Math.round(base * 2 * 100) / 100;
+    if (tocVarianta === "Debară Reglabil (×1.5)") return Math.round(base * 1.5 * 100) / 100;
+    if (tocVarianta === "Debară Fix (×2)") return Math.round(base * 2 * 100) / 100;
+    if (tocVarianta === "Tunel Reglabil Drept (+11 EUR)") return Math.round((base + 11) * 100) / 100;
+    if (tocVarianta === "Tunel Dublu Regl. Drept (×2, +22 EUR)") return Math.round((base * 2 + 22) * 100) / 100;
+    return base;
+  })();
+  const tocStandardMult = tocStandard === "P2112" ? 1.15 : 1;
+  const finalTocPrice = tocWithVarianta !== null ? Math.round(tocWithVarianta * tocStandardMult * 100) / 100 : null;
 
   // Atipic effective price
   const effectiveUsaPrice = isAtipic ? (parseFloat(atipicManualPrice) || 0) : (usaPrice ?? 0);
+
+  // Usa dubla price calculation
+  const baseUsaForDubla = usaPrice ?? 0;
+  const glisRaw = {
+    adder: glisantaInchidere === "carlig" ? 47 : 26,
+    profil: glisantaInchidere === "carlig" ? 11 : (glisantaProfilOpt ? 11 : 0),
+    masca: 84,
+    sistem: 65,
+    tocTunel: (parseFloat(glisantaTocPret) || 0) + 11,
+  };
+  const glisantaSimplaPrice = baseUsaForDubla + glisRaw.adder + glisRaw.masca + glisRaw.profil + glisRaw.sistem + glisRaw.tocTunel;
+
+  const effectiveUsaPriceForDubla = (() => {
+    if (!usaDubla || !tipUsaDubla || isAtipic) return effectiveUsaPrice;
+    if (tipUsaDubla === "Foi Ușă Dublă" || tipUsaDubla === "Foi Ușă Debară")
+      return Math.round(baseUsaForDubla * 2.35 * 100) / 100;
+    if (tipUsaDubla === "Glisantă Simplă (max 900mm)") return Math.round(glisantaSimplaPrice * 100) / 100;
+    if (tipUsaDubla === "Glisantă Dublă (max 1800mm)") return Math.round(glisantaSimplaPrice * 2 * 100) / 100;
+    return effectiveUsaPrice;
+  })();
+
+  const standardMult = standard === "P2112" ? 1.15 : 1;
+  const finalUsaPrice = Math.round(effectiveUsaPriceForDubla * standardMult * 100) / 100;
 
   const ferPrice  = (nrBal && balMod && balCol)
     ? (ferMap[`${nrBal.startsWith("2") ? "2" : "3"}|${balMod}|${balCol}`] ?? null)
@@ -692,7 +762,7 @@ export default function Configurator() {
     });
 
   const currentDoorUnitTotal =
-    effectiveUsaPrice +
+    finalUsaPrice +
     (ferPrice ?? 0) +
     (manPrice ?? 0) +
     currentCostParts.reduce((s, p) => s + p, 0);
@@ -732,6 +802,9 @@ export default function Configurator() {
   }
   function resetDoorForm() {
     setFinisaj(""); setColectie(""); setModel(""); setCuloare(""); setDeschidere(""); setUsaObs("");
+    setStandard("Standard Polonez");
+    setUsaDubla(false); setTipUsaDubla(""); setGlisantaInchidere("carlig");
+    setGlisantaProfilOpt(false); setGlisantaTocPret("");
     setCurrentQty(1);
     setEditingDoor(null);
     resetHw();
@@ -743,6 +816,8 @@ export default function Configurator() {
     setTocStandaloneQty(1);
     setTocTunelPrice(""); setTocTunelFaraFalt(false);
     setTocTunelBrand(""); setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false);
+    setErkadoSpecialReglaj(""); setErkadoSpecialFinisaj("");
+    setTocStandard("Standard Polonez"); setTocVarianta("Standard");
     setTocCostVars([""]); setTocCostCustomPrices({});
     setTocMontaj([]);
     setEditingToc(null);
@@ -782,7 +857,11 @@ export default function Configurator() {
   function handleTocTip(v: string) {
     setTocTunelPrice(""); setTocTunelFaraFalt(false);
     setTocTunelBrand(""); setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false);
+    setErkadoSpecialReglaj(""); setErkadoSpecialFinisaj("");
     if (v === "Toc tunel") { setTocFinisaj(v); setTocColectie(""); setTocModel(""); setTocBrand(""); return; }
+    if ((ERKADO_SPECIAL_TOC_TYPES as readonly string[]).includes(v)) {
+      setTocFinisaj(v); setTocColectie(""); setTocModel(""); setTocBrand("erkado"); return;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toc = (doorsData["TOC_V2"] ?? {}) as Record<string, Record<string, Record<string, any>>>;
     const allR = Object.keys(toc[v] ?? {}).filter((k) => k !== "__");
@@ -791,6 +870,7 @@ export default function Configurator() {
     const fins = effReglaj ? Object.keys(toc[v]?.[effReglaj] ?? {}) : [];
     setTocFinisaj(v); setTocColectie(newReglaj);
     setTocModel(fins.length === 1 ? fins[0] : "");
+    setTocBrand("");
   }
 
   function handleAddCostOption(label: string, price: number | null) {
@@ -883,7 +963,13 @@ export default function Configurator() {
         model: isAtipic ? "" : model,
         culoare: isAtipic ? "" : culoare,
         deschidere, usaObs,
-        usaPrice: effectiveUsaPrice,
+        standard: standard !== "Standard Polonez" ? standard : undefined,
+        usaPrice: finalUsaPrice,
+        usaDubla: usaDubla || undefined,
+        tipUsaDubla: usaDubla ? tipUsaDubla : undefined,
+        glisantaInchidere: (usaDubla && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaInchidere : undefined,
+        glisantaProfilOpt: (usaDubla && glisantaInchidere === "fara" && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaProfilOpt : undefined,
+        glisantaTocPret: (usaDubla && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaTocPret : undefined,
         isAtipic: isAtipic || undefined,
         atipicDesc: isAtipic ? atipicDesc : undefined,
         montaj: activeMontaj.length > 0 ? activeMontaj : undefined,
@@ -921,7 +1007,13 @@ export default function Configurator() {
       model: isAtipic ? "" : model,
       culoare: isAtipic ? "" : culoare,
       deschidere, usaObs,
-      usaPrice: effectiveUsaPrice,
+      standard: standard !== "Standard Polonez" ? standard : undefined,
+      usaPrice: finalUsaPrice,
+      usaDubla: usaDubla || undefined,
+      tipUsaDubla: usaDubla ? tipUsaDubla : undefined,
+      glisantaInchidere: (usaDubla && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaInchidere : undefined,
+      glisantaProfilOpt: (usaDubla && glisantaInchidere === "fara" && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaProfilOpt : undefined,
+      glisantaTocPret: (usaDubla && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaTocPret : undefined,
       isAtipic: isAtipic || undefined,
       atipicDesc: isAtipic ? atipicDesc : undefined,
       montaj: activeMontaj.length > 0 ? activeMontaj : undefined,
@@ -989,7 +1081,7 @@ export default function Configurator() {
 
   // ── TOC cart actions ──────────────────────────────────────
   function handleAddTocToCart() {
-    const tocPriceVal = effectiveTocPrice ?? 0;
+    const tocPriceVal = finalTocPrice ?? 0;
     if (tocPriceVal === 0) return;
     const isErkado = tocBrand === "erkado";
     const erkadoRangeVal = isErkado ? tocColectie : "";
@@ -1012,15 +1104,27 @@ export default function Configurator() {
       id,
       brand: tocFinisaj === "Toc tunel"
         ? (tocTunelBrand as "naturen" | "erkado" || "naturen")
-        : (isErkado ? "erkado" : "naturen"),
-      tocFinisaj, tocColectie, tocModel,
-      erkadoRange: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado" ? tocTunelErkadoReglaj : erkadoRangeVal,
-      erkadoCollection: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado" ? tocTunelErkadoFinisaj : "",
+        : (isErkadoSpecialType || isErkado) ? "erkado" : "naturen",
+      tocFinisaj,
+      tocColectie: isErkadoSpecialType ? "" : tocColectie,
+      tocModel: isErkadoSpecialType ? "" : tocModel,
+      erkadoRange: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado"
+        ? tocTunelErkadoReglaj
+        : isErkadoSpecialType
+        ? erkadoSpecialReglaj
+        : erkadoRangeVal,
+      erkadoCollection: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado"
+        ? tocTunelErkadoFinisaj
+        : isErkadoSpecialType
+        ? erkadoSpecialFinisaj
+        : "",
       faraFalt: tocFinisaj === "Toc tunel" ? tocTunelFaraFalt : undefined,
       tunelBrand: tocFinisaj === "Toc tunel" ? (tocTunelBrand || undefined) : undefined,
       tunelReglaj: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado" ? tocTunelErkadoReglaj : undefined,
       tunelFinisaj: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado" ? tocTunelErkadoFinisaj : undefined,
       isDubla: tocTunelDubla || undefined,
+      tocVarianta: tocVarianta !== "Standard" ? tocVarianta : undefined,
+      standard: tocStandard !== "Standard Polonez" ? tocStandard : undefined,
       obs: tocObs,
       tocPrice: tocPriceVal,
       costVars: activeTocCostVars,
@@ -1086,6 +1190,12 @@ export default function Configurator() {
     setModel(door.model);
     setCuloare(door.culoare);
     setDeschidere(door.deschidere);
+    setStandard(door.standard ?? "Standard Polonez");
+    setUsaDubla(door.usaDubla ?? false);
+    setTipUsaDubla(door.tipUsaDubla ?? "");
+    setGlisantaInchidere(door.glisantaInchidere ?? "carlig");
+    setGlisantaProfilOpt(door.glisantaProfilOpt ?? false);
+    setGlisantaTocPret(door.glisantaTocPret ?? "");
     setUsaObs(door.usaObs);
     setCurrentQty(door.qty ?? 1);
     setNrBal(door.nrBal);
@@ -1111,6 +1221,8 @@ export default function Configurator() {
     setTocObs(toc.obs);
     setTocStandaloneQty(toc.qty);
     setTocMontaj(toc.montaj ?? []);
+    setTocVarianta(toc.tocVarianta ?? "Standard");
+    setTocStandard(toc.standard ?? "Standard Polonez");
     const savedCostVars = toc.costVars ?? [];
     setTocCostVars(savedCostVars.length > 0 ? [...savedCostVars, ""] : [""]);
     setTocCostCustomPrices(Object.fromEntries(
@@ -1132,12 +1244,21 @@ export default function Configurator() {
         setTocTunelPrice(String(toc.tocPrice));
         setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj("");
       }
+      setErkadoSpecialReglaj(""); setErkadoSpecialFinisaj("");
+    } else if ((ERKADO_SPECIAL_TOC_TYPES as readonly string[]).includes(toc.tocFinisaj)) {
+      setTocBrand("erkado");
+      setTocColectie(""); setTocModel("");
+      setErkadoSpecialReglaj(toc.erkadoRange ?? "");
+      setErkadoSpecialFinisaj(toc.erkadoCollection ?? "");
+      setTocTunelBrand(""); setTocTunelPrice(""); setTocTunelFaraFalt(false);
+      setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false);
     } else {
       setTocBrand(toc.brand === "erkado" ? "erkado" : "naturen");
       setTocColectie(toc.brand === "erkado" ? toc.erkadoRange : toc.tocColectie);
       setTocModel(toc.tocModel);
       setTocTunelBrand(""); setTocTunelPrice(""); setTocTunelFaraFalt(false);
       setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false);
+      setErkadoSpecialReglaj(""); setErkadoSpecialFinisaj("");
     }
   }
 
@@ -1157,7 +1278,13 @@ export default function Configurator() {
       model: isAtipic ? "" : model,
       culoare: isAtipic ? "" : culoare,
       deschidere, usaObs,
-      usaPrice: effectiveUsaPrice,
+      standard: standard !== "Standard Polonez" ? standard : undefined,
+      usaPrice: finalUsaPrice,
+      usaDubla: usaDubla || undefined,
+      tipUsaDubla: usaDubla ? tipUsaDubla : undefined,
+      glisantaInchidere: (usaDubla && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaInchidere : undefined,
+      glisantaProfilOpt: (usaDubla && glisantaInchidere === "fara" && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaProfilOpt : undefined,
+      glisantaTocPret: (usaDubla && (tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)")) ? glisantaTocPret : undefined,
       isAtipic: isAtipic || undefined,
       atipicDesc: isAtipic ? atipicDesc : undefined,
       montaj: usaMontaj.filter(m => m.name.trim() || m.priceRon > 0),
@@ -1184,9 +1311,11 @@ export default function Configurator() {
     const items: OfferItem[] = [];
     for (const d of doorsForPdf) {
       const q = d.qty ?? 1;
+      const dublaSuffix = d.usaDubla && d.tipUsaDubla ? ` [${d.tipUsaDubla}]` : "";
+      const p2112Suffix = d.standard === "P2112" ? " [P2112]" : "";
       const doorName = d.isAtipic
         ? `Ușă atipică — ${d.atipicDesc}`
-        : `Usa ${d.finisaj} ${d.model}`;
+        : `Usa ${d.finisaj} ${d.model}${dublaSuffix}${p2112Suffix}`;
       items.push({
         name: doorName,
         obs: [d.usaObs, d.isAtipic ? undefined : d.culoare, d.deschidere].filter(Boolean).join(", ") || undefined,
@@ -1227,16 +1356,21 @@ export default function Configurator() {
     // Add standalone TOC items to PDF
     for (const t of cartTocs) {
       const isTunelPdf = t.tocFinisaj === "Toc tunel";
+      const isSpecialErkadoPdf = (ERKADO_SPECIAL_TOC_TYPES as readonly string[]).includes(t.tocFinisaj);
       const tocLabel = isTunelPdf
         ? (t.tunelBrand === "erkado"
-          ? `Toc tunel Erkado — ${t.tunelReglaj ?? t.erkadoRange}${t.tunelFinisaj ?? t.erkadoCollection ? ` — ${t.tunelFinisaj ?? t.erkadoCollection}` : ""}${t.isDubla ? " (Dublă)" : ""}`
-          : `Toc tunel Naturen${t.isDubla ? " (Dublă)" : ""}`)
-        : t.brand === "erkado"
+          ? `Toc tunel Erkado — ${t.tunelReglaj ?? t.erkadoRange}${t.tunelFinisaj ?? t.erkadoCollection ? ` — ${t.tunelFinisaj ?? t.erkadoCollection}` : ""}${t.isDubla ? " (Dubla)" : ""}`
+          : `Toc tunel Naturen${t.isDubla ? " (Dubla)" : ""}`)
+        : isSpecialErkadoPdf
+          ? `${t.tocFinisaj} — Reglaj ${t.erkadoRange}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
+          : t.brand === "erkado"
           ? `Toc Erkado${t.tocFinisaj ? ` ${t.tocFinisaj}` : ""} — Reglaj ${t.erkadoRange}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
           : `Toc ${t.tocFinisaj}${t.tocColectie && t.tocColectie !== "__" ? ` ${t.tocColectie}` : ""}${t.tocModel ? ` — ${t.tocModel}` : ""}`;
+      const variantaSuffix = t.tocVarianta && t.tocVarianta !== "Standard" ? ` [${t.tocVarianta}]` : "";
+      const standardSuffix = t.standard === "P2112" ? " [P2112]" : "";
       const obsLines = [t.faraFalt ? "Fara falt" : undefined, t.obs || undefined].filter(Boolean);
       items.push({
-        name: tocLabel,
+        name: tocLabel + variantaSuffix + standardSuffix,
         obs: obsLines.join("; ") || undefined,
         um: "buc",
         qty: t.qty,
@@ -1418,12 +1552,15 @@ export default function Configurator() {
                 <Combo value={culoare} options={culoriOpts} onChange={setCuloare} placeholder="— culoare —" disabled={!model} />
               </div>
             )}
-            <div className={isAtipic ? "" : ""}>
+            <div>
               <FieldLabel>Deschidere</FieldLabel>
               <Combo value={deschidere} options={DESCHIDERI} onChange={setDeschidere} placeholder="— dr./stg. —" />
             </div>
-            {!isAtipic && <div />}
-            <div className={isAtipic ? "col-span-3" : ""}>
+            <div>
+              <FieldLabel>Standard</FieldLabel>
+              <Combo value={standard} options={[...STANDARD_OPTIONS]} onChange={setStandard} />
+            </div>
+            <div className={isAtipic ? "col-span-1" : ""}>
               <FieldLabel>Observații</FieldLabel>
               <input
                 value={usaObs}
@@ -1432,6 +1569,64 @@ export default function Configurator() {
                 className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
               />
             </div>
+          </div>
+        )}
+
+        {/* Ușă dublă */}
+        {!isAtipic && model && (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={usaDubla}
+                onChange={e => { setUsaDubla(e.target.checked); if (!e.target.checked) setTipUsaDubla(""); }}
+                className="w-4 h-4 accent-indigo-600"
+              />
+              <span className="text-sm font-semibold text-slate-700">Ușă dublă</span>
+            </label>
+            {usaDubla && (
+              <div className="mt-2 grid grid-cols-[1fr_1fr_1fr] gap-2 items-end">
+                <div>
+                  <FieldLabel>Tip ușă dublă</FieldLabel>
+                  <Combo value={tipUsaDubla} options={[...USA_DUBLA_TYPES]} onChange={setTipUsaDubla} placeholder="— selectează —" />
+                </div>
+                {(tipUsaDubla === "Glisantă Simplă (max 900mm)" || tipUsaDubla === "Glisantă Dublă (max 1800mm)") && (<>
+                  <div>
+                    <FieldLabel>Închidere glisantă</FieldLabel>
+                    <Combo
+                      value={glisantaInchidere === "carlig" ? "Cârlig + kit (+47 EUR)" : "Fără (mâner dreptunghiular, +26 EUR)"}
+                      options={["Cârlig + kit (+47 EUR)", "Fără (mâner dreptunghiular, +26 EUR)"]}
+                      onChange={v => setGlisantaInchidere(v.startsWith("Cârlig") ? "carlig" : "fara")}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel>Preț toc reglabil drept (EUR)</FieldLabel>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number" min="0" placeholder="0"
+                        value={glisantaTocPret}
+                        onChange={e => setGlisantaTocPret(e.target.value)}
+                        className="w-24 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 text-center outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                      />
+                      <span className="text-xs text-slate-500 font-medium">EUR + 11</span>
+                    </div>
+                  </div>
+                  {glisantaInchidere === "fara" && (
+                    <div className="col-span-3">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={glisantaProfilOpt}
+                          onChange={e => setGlisantaProfilOpt(e.target.checked)}
+                          className="w-4 h-4 accent-indigo-600"
+                        />
+                        <span className="text-sm text-slate-700">Profil opțional (+11 EUR)</span>
+                      </label>
+                    </div>
+                  )}
+                </>)}
+              </div>
+            )}
           </div>
         )}
 
@@ -1606,7 +1801,11 @@ export default function Configurator() {
           <div className="flex gap-2 items-end">
             <div className="flex-[1.5]">
               <FieldLabel>Tip toc</FieldLabel>
-              <Combo value={tocFinisaj} options={["Toc tunel", ...tocTipOpts]} onChange={handleTocTip} />
+              <Combo
+                value={tocFinisaj}
+                options={["Toc tunel", ...ERKADO_SPECIAL_TOC_TYPES, ...tocTipOpts]}
+                onChange={handleTocTip}
+              />
             </div>
             {tocFinisaj === "Toc tunel" ? (
               <>
@@ -1675,15 +1874,34 @@ export default function Configurator() {
                   </>
                 )}
 
-                {/* Dubla checkbox */}
-                {tocTunelBrand && tocTunelBasePrice !== null && (
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none self-center mt-3">
-                    <input type="checkbox" checked={tocTunelDubla} onChange={e => setTocTunelDubla(e.target.checked)} className="rounded border-slate-300 text-indigo-600" />
-                    <span className="text-sm text-slate-600 whitespace-nowrap">Dublă (+30%)</span>
-                  </label>
-                )}
-
                 <PriceBadge price={effectiveTocPrice} selected={!!(tocTunelBrand && tocTunelBasePrice !== null)} />
+              </>
+            ) : isErkadoSpecialType ? (
+              <>
+                {/* Special Erkado-only toc types: reglaj + optional finisaj */}
+                <div className="flex-1">
+                  <FieldLabel>Reglaj (mm)</FieldLabel>
+                  <Combo
+                    value={erkadoSpecialReglaj}
+                    options={getErkadoSpecialTocRanges(tocFinisaj)}
+                    onChange={v => { setErkadoSpecialReglaj(v); setErkadoSpecialFinisaj(""); }}
+                    optionPrices={erkadoSpecialFinisaj
+                      ? getErkadoSpecialTocRangePrices(tocFinisaj, erkadoSpecialFinisaj)
+                      : {}}
+                  />
+                </div>
+                {erkadoSpecialReglaj && getErkadoSpecialTocFinisaje(tocFinisaj).length > 0 && (
+                  <div className="flex-1">
+                    <FieldLabel>Finisaj toc</FieldLabel>
+                    <Combo
+                      value={erkadoSpecialFinisaj}
+                      options={getErkadoSpecialTocFinisaje(tocFinisaj)}
+                      onChange={setErkadoSpecialFinisaj}
+                      optionPrices={getErkadoSpecialTocFinisajPrices(tocFinisaj, erkadoSpecialReglaj)}
+                    />
+                  </div>
+                )}
+                <PriceBadge price={erkadoSpecialTocPrice} selected={erkadoSpecialReglaj !== "" && (getErkadoSpecialTocFinisaje(tocFinisaj).length === 0 || erkadoSpecialFinisaj !== "")} />
               </>
             ) : tocFinisaj ? (
               <>
@@ -1732,7 +1950,7 @@ export default function Configurator() {
             ) : null}
           </div>
           {/* Observatii — shown for all toc types */}
-          {(tocFinisaj !== "Toc tunel" ? !!(tocFinisaj && tocBrand) : !!tocTunelBrand) && (
+          {(tocFinisaj === "Toc tunel" ? !!tocTunelBrand : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
             <div>
               <FieldLabel>Observații</FieldLabel>
               <textarea
@@ -1745,7 +1963,7 @@ export default function Configurator() {
             </div>
           )}
           {/* Costuri adiționale */}
-          {(tocFinisaj !== "Toc tunel" ? !!(tocFinisaj && tocBrand) : !!tocTunelBrand) && (
+          {(tocFinisaj === "Toc tunel" ? !!tocTunelBrand : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
             <div>
               <FieldLabel>Costuri adiționale</FieldLabel>
               <div className="flex flex-wrap gap-2">
@@ -1769,16 +1987,29 @@ export default function Configurator() {
           )}
         </div>
 
-        {(tocFinisaj === "Toc tunel" ? effectiveTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
+        {(tocFinisaj === "Toc tunel" ? effectiveTocPrice !== null : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div>
+              <FieldLabel>Variantă toc</FieldLabel>
+              <Combo value={tocVarianta} options={[...TOC_VARIANTE]} onChange={setTocVarianta} />
+            </div>
+            <div>
+              <FieldLabel>Standard toc</FieldLabel>
+              <Combo value={tocStandard} options={[...STANDARD_OPTIONS]} onChange={setTocStandard} />
+            </div>
+          </div>
+        )}
+
+        {(tocFinisaj === "Toc tunel" ? effectiveTocPrice !== null : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
           <div className="mt-4 rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <p className="text-xs text-indigo-500 font-medium mb-0.5">Total toc curent</p>
                 <p className="text-lg font-bold text-indigo-700">
-                  {effectiveTocPrice ?? 0} EUR
+                  {finalTocPrice ?? 0} EUR
                   {tocStandaloneQty > 1 && (
                     <span className="text-sm font-medium text-indigo-400 ml-2">
-                      × {tocStandaloneQty} = {(effectiveTocPrice ?? 0) * tocStandaloneQty} EUR
+                      × {tocStandaloneQty} = {((finalTocPrice ?? 0) * tocStandaloneQty).toFixed(2)} EUR
                     </span>
                   )}
                 </p>
@@ -1879,6 +2110,16 @@ export default function Configurator() {
                             <option value="">— dr./stg. —</option>
                             {DESCHIDERI.map(o => <option key={o} value={o}>{o}</option>)}
                           </select>
+                          {d.usaDubla && d.tipUsaDubla && (
+                            <span className="text-xs bg-indigo-100 border border-indigo-200 rounded px-1.5 py-0.5 text-indigo-700 font-medium">
+                              {d.tipUsaDubla}
+                            </span>
+                          )}
+                          {d.standard === "P2112" && (
+                            <span className="text-xs bg-orange-100 border border-orange-200 rounded px-1.5 py-0.5 text-orange-700 font-medium">
+                              P2112
+                            </span>
+                          )}
                           {d.ferPrice > 0 && (
                             <span className="text-xs bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-600">
                               {d.nrBal}× {d.balMod} {d.balCol}
@@ -1947,11 +2188,14 @@ export default function Configurator() {
             {cartTocs.map((t, i) => {
               const isErkadoItem = t.brand === "erkado";
               const isTunelItem = t.tocFinisaj === "Toc tunel";
+              const isSpecialErkadoItem = (ERKADO_SPECIAL_TOC_TYPES as readonly string[]).includes(t.tocFinisaj);
               const tocLabel = isTunelItem
                 ? (t.tunelBrand === "erkado"
                   ? `Toc tunel Erkado — ${t.tunelReglaj ?? t.erkadoRange}${t.tunelFinisaj ?? t.erkadoCollection ? ` — ${t.tunelFinisaj ?? t.erkadoCollection}` : ""}${t.isDubla ? " (Dublă)" : ""}`
                   : `Toc tunel Naturen${t.isDubla ? " (Dublă)" : ""}`)
-                : isErkadoItem
+                : isSpecialErkadoItem
+                  ? `${t.tocFinisaj} — Reglaj ${t.erkadoRange}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
+                  : isErkadoItem
                   ? `Toc Erkado${t.tocFinisaj ? ` ${t.tocFinisaj}` : ""} — Reglaj ${t.erkadoRange}`
                   : `Toc ${t.tocFinisaj}${t.tocColectie && t.tocColectie !== "__" ? ` ${t.tocColectie}` : ""}${t.tocModel ? ` — ${t.tocModel}` : ""}`;
               return (
@@ -1962,7 +2206,15 @@ export default function Configurator() {
                         T{i + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-slate-800 truncate">{tocLabel}</p>
+                        <p className="text-sm font-semibold text-slate-800 truncate">
+                          {tocLabel}
+                          {t.tocVarianta && t.tocVarianta !== "Standard" && (
+                            <span className="ml-1.5 text-xs font-medium text-indigo-600">[{t.tocVarianta}]</span>
+                          )}
+                          {t.standard === "P2112" && (
+                            <span className="ml-1.5 text-xs font-medium text-orange-600">[P2112]</span>
+                          )}
+                        </p>
                         <div className="flex flex-wrap gap-1.5 mt-1 items-center">
                           {(t.faraFalt || t.obs) && (
                             <span className="text-xs text-slate-500">

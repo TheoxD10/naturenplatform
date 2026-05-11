@@ -20,6 +20,10 @@ export interface TocLineItem {
   tunelReglaj?: string;
   tunelFinisaj?: string;
   isDubla?: boolean;
+  // Varianta (Dublu, Debara, Tunel Drept, etc.)
+  tocVarianta?: string;
+  // Standard (Standard Polonez / Ceh / P2112)
+  standard?: string;
   // Common
   obs: string;
   tocPrice: number;
@@ -38,8 +42,15 @@ export interface DoorLineItem {
   model: string;
   culoare: string;
   deschidere: string;
+  standard?: string; // "Standard Polonez" | "Standard Ceh" | "P2112"
   usaObs: string;
   usaPrice: number;
+  // Usa dubla
+  usaDubla?: boolean;
+  tipUsaDubla?: string;
+  glisantaInchidere?: "carlig" | "fara";
+  glisantaProfilOpt?: boolean;
+  glisantaTocPret?: string;
   // Toc
   addToc: boolean;
   tocFinisaj: string;
@@ -126,7 +137,10 @@ export function deleteOrder(id: string): void {
 
 export function emptyDoor(): Omit<DoorLineItem, "id" | "totalEur"> {
   return {
-    finisaj: "", colectie: "", model: "", culoare: "", deschidere: "", usaObs: "", usaPrice: 0,
+    finisaj: "", colectie: "", model: "", culoare: "", deschidere: "",
+    standard: "Standard Polonez", usaObs: "", usaPrice: 0,
+    usaDubla: false, tipUsaDubla: undefined,
+    glisantaInchidere: undefined, glisantaProfilOpt: undefined, glisantaTocPret: undefined,
     addToc: false, tocFinisaj: "", tocColectie: "", tocModel: "", tocObs: "", tocPrice: 0,
     nrBal: "", balMod: "", balCol: "", balDim: "", ferPrice: 0,
     broascaTip: "Broasca cheie", broascaDim: "", broascaCuloare: "Argintiu",
