@@ -525,6 +525,33 @@ export const ERKADO_SPECIAL_TOC_TYPES = [
 ] as const;
 export type ErkadoSpecialTocType = typeof ERKADO_SPECIAL_TOC_TYPES[number];
 
+// Toc reglabil drept Naturen (single price per range, no finisaj)
+export const NATUREN_TOC_REGLABIL_DREPT: { range: string; price: number | null }[] = [
+  { range: "100 - 120", price: 115 },
+  { range: "120 - 140", price: null },
+  { range: "140 - 160", price: null },
+  { range: "160 - 180", price: null },
+  { range: "180 - 200", price: 136 },
+  { range: "200 - 220", price: null },
+  { range: "220 - 240", price: null },
+  { range: "240 - 260", price: null },
+  { range: "260 - 280", price: null },
+  { range: "280 - 300", price: null },
+  { range: "300 - 320", price: 177 },
+  { range: "320 - 340", price: null },
+  { range: "340 - 360", price: null },
+  { range: "360 - 380", price: null },
+  { range: "380 - 400", price: null },
+  { range: "400 - 420", price: null },
+  { range: "420 - 440", price: 198 },
+  { range: "440 - 460", price: null },
+  { range: "460 - 480", price: null },
+  { range: "480 - 500", price: null },
+];
+
+export const NATUREN_SPECIAL_TOC_TYPES = ["Toc reglabil drept Naturen"] as const;
+export type NaturenSpecialTocType = typeof NATUREN_SPECIAL_TOC_TYPES[number];
+
 export const TOC_FIX_TYPES = ["Toc fix 90mm"] as const;
 export type TocFixType = typeof TOC_FIX_TYPES[number];
 

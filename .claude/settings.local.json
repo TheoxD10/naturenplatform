@@ -38,7 +38,9 @@
       "Bash(xargs grep -l \"generateOfferPdf\\\\|generatePdf\")",
       "Bash(xargs grep -l \"basePrice\\\\|doorPrice\\\\|modelPrice\\\\|USA_PRICES\\\\|DOOR_MODELS\"')",
       "Bash(dir C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\public /s /b)",
-      "Bash(findstr /i \"\\\\.xlsx\")"
+      "Bash(findstr /i \"\\\\.xlsx\")",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\app\" -Recurse | Where-Object { $_.Extension -in \".tsx\", \".ts\" } | Select-Object FullName)",
+      "PowerShell(Get-ChildItem *)"
     ]
   }
 }
