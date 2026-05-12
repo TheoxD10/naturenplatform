@@ -535,6 +535,28 @@ export const TOC_FIX_PRICES: Record<string, Record<string, number>> = {
   "Toc fix 90mm": { "GREKO": 78, "CPL ST/PREMIUM": 86, "CPL 0.2": 100, "LACUIT": 173 },
 };
 
+// Pervaz fix — Erkado (price depends on finisaj, same keys as TOC_FIX_FINISAJE)
+export const PERVAZ_FIX_ERKADO_TYPES = ["PERVAZ", "PERVAZ 16 MM", "PERVAZ CU CLIPS"] as const;
+export type PervazFixErkadoType = typeof PERVAZ_FIX_ERKADO_TYPES[number];
+
+export const PERVAZ_FIX_ERKADO_PRICES: Record<string, Record<string, number>> = {
+  "PERVAZ":         { "GREKO": 17, "CPL ST/PREMIUM": 19, "CPL 0.2": 29, "LACUIT": 49 },
+  "PERVAZ 16 MM":   { "GREKO": 30, "CPL ST/PREMIUM": 34, "CPL 0.2": 50, "LACUIT": 72 },
+  "PERVAZ CU CLIPS":{ "GREKO": 49, "CPL ST/PREMIUM": 49, "CPL 0.2": 73, "LACUIT": 73 },
+};
+
+// Pervaz fix — Naturen (fixed price, no collection dependency)
+export const PERVAZ_FIX_NATUREN_TYPES = [
+  "PERVAZ FIX DREPT - latime 6cm",
+  "PERVAZ AJUSTARE 4 CM - latime 8cm",
+] as const;
+export type PervazFixNaturenType = typeof PERVAZ_FIX_NATUREN_TYPES[number];
+
+export const PERVAZ_FIX_NATUREN_PRICES: Record<string, number> = {
+  "PERVAZ FIX DREPT - latime 6cm": 14,
+  "PERVAZ AJUSTARE 4 CM - latime 8cm": 29,
+};
+
 export function getErkadoSpecialTocRanges(tipToc: string): string[] {
   if (tipToc === "Toc reglabil cu falt") return ERKADO_TOC_CU_FALT.map(e => e.range);
   if (tipToc === "Toc reglabil fara falt") return ERKADO_TOC_FARA_FALT.map(e => e.range);

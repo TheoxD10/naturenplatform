@@ -74,6 +74,8 @@ export async function GET() {
 
   // "Toc tunel" is a special UI type with its own brand/price logic — ensure it always appears
   if (!tocData["Toc tunel"]) tocData["Toc tunel"] = {};
+  // "Fix 90mm" is the Excel entry for the hardcoded "Toc fix 90mm" — remove to avoid duplicates
+  delete tocData["Fix 90mm"];
 
   data["TOC_V2"] = tocData;
 

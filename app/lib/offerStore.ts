@@ -24,6 +24,10 @@ export interface TocLineItem {
   tocVarianta?: string;
   // Standard (Standard Polonez / Ceh / P2112)
   standard?: string;
+  // Pervaz fix (only for Toc fix 90mm)
+  pervazFixBrand?: "erkado" | "naturen";
+  pervazFixType?: string;
+  pervazFixPrice?: number;
   // Common
   obs: string;
   tocPrice: number;

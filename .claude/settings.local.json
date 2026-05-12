@@ -36,7 +36,9 @@
       "Bash(Get-ChildItem *)",
       "Bash(xargs grep -l \"oferta\\\\|Oferta\")",
       "Bash(xargs grep -l \"generateOfferPdf\\\\|generatePdf\")",
-      "Bash(xargs grep -l \"basePrice\\\\|doorPrice\\\\|modelPrice\\\\|USA_PRICES\\\\|DOOR_MODELS\"')"
+      "Bash(xargs grep -l \"basePrice\\\\|doorPrice\\\\|modelPrice\\\\|USA_PRICES\\\\|DOOR_MODELS\"')",
+      "Bash(dir C:\\\\Users\\\\Naturen\\\\Desktop\\\\configurator-usi\\\\public /s /b)",
+      "Bash(findstr /i \"\\\\.xlsx\")"
     ]
   }
 }
