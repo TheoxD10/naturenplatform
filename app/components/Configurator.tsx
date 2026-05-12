@@ -18,6 +18,9 @@ import {
   getErkadoSpecialTocPrice,
   getErkadoSpecialTocRangePrices,
   getErkadoSpecialTocFinisajPrices,
+  TOC_FIX_TYPES,
+  TOC_FIX_FINISAJE,
+  TOC_FIX_PRICES,
   BROASCA_TIPURI_HW,
   BROASCA_DIMENSIUNI,
   BROASCA_CULORI_HW,
@@ -697,8 +700,15 @@ export default function Configurator() {
     ? getErkadoSpecialTocPrice(tocFinisaj, erkadoSpecialReglaj, erkadoSpecialFinisaj)
     : null;
 
+  const isTocFix = (TOC_FIX_TYPES as readonly string[]).includes(tocFinisaj);
+  const tocFixPrice: number | null = isTocFix
+    ? (TOC_FIX_PRICES[tocFinisaj]?.[erkadoSpecialFinisaj] ?? null)
+    : null;
+
   const effectiveTocPrice = tocFinisaj === "Toc tunel"
     ? (tocTunelBasePrice !== null ? Math.round(tocTunelBasePrice * 100) / 100 : null)
+    : isTocFix
+    ? tocFixPrice
     : isErkadoSpecialType
     ? erkadoSpecialTocPrice
     : tocPrice;
@@ -886,6 +896,9 @@ export default function Configurator() {
     if (v === "Toc tunel") { setTocFinisaj(v); setTocColectie(""); setTocModel(""); setTocBrand(""); return; }
     if ((ERKADO_SPECIAL_TOC_TYPES as readonly string[]).includes(v)) {
       setTocFinisaj(v); setTocColectie(""); setTocModel(""); setTocBrand("erkado"); setTocVarianta("Standard"); return;
+    }
+    if ((TOC_FIX_TYPES as readonly string[]).includes(v)) {
+      setTocFinisaj(v); setTocColectie(""); setTocModel(""); setTocBrand(""); setTocVarianta("Standard"); return;
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toc = (doorsData["TOC_V2"] ?? {}) as Record<string, Record<string, Record<string, any>>>;
@@ -1135,16 +1148,17 @@ export default function Configurator() {
         ? (tocTunelBrand as "naturen" | "erkado" || "naturen")
         : (isErkadoSpecialType || isErkado) ? "erkado" : "naturen",
       tocFinisaj,
-      tocColectie: isErkadoSpecialType ? "" : tocColectie,
-      tocModel: isErkadoSpecialType ? "" : tocModel,
+      tocColectie: (isErkadoSpecialType || isTocFix) ? "" : tocColectie,
+      tocModel: (isErkadoSpecialType || isTocFix) ? "" : tocModel,
       erkadoRange: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado"
         ? tocTunelErkadoReglaj
         : isErkadoSpecialType
         ? erkadoSpecialReglaj
+        : isTocFix ? ""
         : erkadoRangeVal,
       erkadoCollection: tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado"
         ? tocTunelErkadoFinisaj
-        : isErkadoSpecialType
+        : (isErkadoSpecialType || isTocFix)
         ? erkadoSpecialFinisaj
         : "",
       faraFalt: tocFinisaj === "Toc tunel" ? tocTunelFaraFalt : undefined,
@@ -1288,6 +1302,13 @@ export default function Configurator() {
       setErkadoSpecialFinisaj(toc.erkadoCollection ?? "");
       setTocTunelBrand(""); setTocTunelPrice(""); setTocTunelFaraFalt(false);
       setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false);
+    } else if ((TOC_FIX_TYPES as readonly string[]).includes(toc.tocFinisaj)) {
+      setTocBrand("");
+      setTocColectie(""); setTocModel("");
+      setErkadoSpecialReglaj("");
+      setErkadoSpecialFinisaj(toc.erkadoCollection ?? "");
+      setTocTunelBrand(""); setTocTunelPrice(""); setTocTunelFaraFalt(false);
+      setTocTunelErkadoReglaj(""); setTocTunelErkadoFinisaj(""); setTocTunelDubla(false);
     } else {
       setTocBrand(toc.brand === "erkado" ? "erkado" : "naturen");
       setTocColectie(toc.brand === "erkado" ? toc.erkadoRange : toc.tocColectie);
@@ -1396,12 +1417,15 @@ export default function Configurator() {
     for (const t of cartTocs) {
       const isTunelPdf = t.tocFinisaj === "Toc tunel";
       const isSpecialErkadoPdf = (ERKADO_SPECIAL_TOC_TYPES as readonly string[]).includes(t.tocFinisaj);
+      const isTocFixPdf = (TOC_FIX_TYPES as readonly string[]).includes(t.tocFinisaj);
       const tocLabel = isTunelPdf
         ? (t.tunelBrand === "erkado"
           ? `Toc tunel Erkado — ${t.tunelReglaj ?? t.erkadoRange}${t.tunelFinisaj ?? t.erkadoCollection ? ` — ${t.tunelFinisaj ?? t.erkadoCollection}` : ""}${t.isDubla ? " (Dubla)" : ""}`
           : `Toc tunel Naturen${t.isDubla ? " (Dubla)" : ""}`)
         : isSpecialErkadoPdf
           ? `${t.tocFinisaj} — Reglaj ${t.erkadoRange}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
+          : isTocFixPdf
+          ? `${t.tocFinisaj}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
           : t.brand === "erkado"
           ? `Toc Erkado${t.tocFinisaj ? ` ${t.tocFinisaj}` : ""} — Reglaj ${t.erkadoRange}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
           : `Toc ${t.tocFinisaj}${t.tocColectie && t.tocColectie !== "__" ? ` ${t.tocColectie}` : ""}${t.tocModel ? ` — ${t.tocModel}` : ""}`;
@@ -1877,7 +1901,7 @@ export default function Configurator() {
               <FieldLabel>Tip toc</FieldLabel>
               <Combo
                 value={tocFinisaj}
-                options={["Toc tunel", ...ERKADO_SPECIAL_TOC_TYPES, ...tocTipOpts]}
+                options={["Toc tunel", ...ERKADO_SPECIAL_TOC_TYPES, ...TOC_FIX_TYPES, ...tocTipOpts]}
                 onChange={handleTocTip}
               />
             </div>
@@ -1977,6 +2001,19 @@ export default function Configurator() {
                 )}
                 <PriceBadge price={erkadoSpecialTocPrice} selected={erkadoSpecialReglaj !== "" && (getErkadoSpecialTocFinisaje(tocFinisaj).length === 0 || erkadoSpecialFinisaj !== "")} />
               </>
+            ) : isTocFix ? (
+              <>
+                <div className="flex-1">
+                  <FieldLabel>Finisaj toc</FieldLabel>
+                  <Combo
+                    value={erkadoSpecialFinisaj}
+                    options={[...TOC_FIX_FINISAJE]}
+                    onChange={setErkadoSpecialFinisaj}
+                    optionPrices={Object.fromEntries(TOC_FIX_FINISAJE.map(f => [f, TOC_FIX_PRICES[tocFinisaj]?.[f] ?? null]))}
+                  />
+                </div>
+                <PriceBadge price={tocFixPrice} selected={erkadoSpecialFinisaj !== ""} />
+              </>
             ) : tocFinisaj ? (
               <>
                 {/* Brand selector */}
@@ -2024,7 +2061,7 @@ export default function Configurator() {
             ) : null}
           </div>
           {/* Observatii — shown for all toc types */}
-          {(tocFinisaj === "Toc tunel" ? !!tocTunelBrand : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
+          {(tocFinisaj === "Toc tunel" ? !!tocTunelBrand : isTocFix ? erkadoSpecialFinisaj !== "" : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
             <div>
               <FieldLabel>Observații</FieldLabel>
               <textarea
@@ -2037,7 +2074,7 @@ export default function Configurator() {
             </div>
           )}
           {/* Costuri adiționale */}
-          {(tocFinisaj === "Toc tunel" ? !!tocTunelBrand : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
+          {(tocFinisaj === "Toc tunel" ? !!tocTunelBrand : isTocFix ? erkadoSpecialFinisaj !== "" : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
             <div>
               <FieldLabel>Costuri adiționale</FieldLabel>
               <div className="flex flex-wrap gap-2">
@@ -2061,7 +2098,7 @@ export default function Configurator() {
           )}
         </div>
 
-        {(tocFinisaj === "Toc tunel" ? effectiveTocPrice !== null : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
+        {(tocFinisaj === "Toc tunel" ? effectiveTocPrice !== null : isTocFix ? tocFixPrice !== null && erkadoSpecialFinisaj !== "" : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
           <div className="grid grid-cols-2 gap-2 mt-2">
             <div>
               <FieldLabel>Variantă toc</FieldLabel>
@@ -2074,7 +2111,7 @@ export default function Configurator() {
           </div>
         )}
 
-        {(tocFinisaj === "Toc tunel" ? effectiveTocPrice !== null : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
+        {(tocFinisaj === "Toc tunel" ? effectiveTocPrice !== null : isTocFix ? tocFixPrice !== null && erkadoSpecialFinisaj !== "" : isErkadoSpecialType ? erkadoSpecialTocPrice !== null : !!(tocFinisaj && tocBrand)) && (
           <div className="mt-4 rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
@@ -2263,12 +2300,15 @@ export default function Configurator() {
               const isErkadoItem = t.brand === "erkado";
               const isTunelItem = t.tocFinisaj === "Toc tunel";
               const isSpecialErkadoItem = (ERKADO_SPECIAL_TOC_TYPES as readonly string[]).includes(t.tocFinisaj);
+              const isTocFixItem = (TOC_FIX_TYPES as readonly string[]).includes(t.tocFinisaj);
               const tocLabel = isTunelItem
                 ? (t.tunelBrand === "erkado"
                   ? `Toc tunel Erkado — ${t.tunelReglaj ?? t.erkadoRange}${t.tunelFinisaj ?? t.erkadoCollection ? ` — ${t.tunelFinisaj ?? t.erkadoCollection}` : ""}${t.isDubla ? " (Dublă)" : ""}`
                   : `Toc tunel Naturen${t.isDubla ? " (Dublă)" : ""}`)
                 : isSpecialErkadoItem
                   ? `${t.tocFinisaj} — Reglaj ${t.erkadoRange}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
+                  : isTocFixItem
+                  ? `${t.tocFinisaj}${t.erkadoCollection ? ` — ${t.erkadoCollection}` : ""}`
                   : isErkadoItem
                   ? `Toc Erkado${t.tocFinisaj ? ` ${t.tocFinisaj}` : ""} — Reglaj ${t.erkadoRange}`
                   : `Toc ${t.tocFinisaj}${t.tocColectie && t.tocColectie !== "__" ? ` ${t.tocColectie}` : ""}${t.tocModel ? ` — ${t.tocModel}` : ""}`;

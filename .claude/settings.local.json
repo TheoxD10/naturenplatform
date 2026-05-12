@@ -35,7 +35,8 @@
       "Bash(xargs ls -lh)",
       "Bash(Get-ChildItem *)",
       "Bash(xargs grep -l \"oferta\\\\|Oferta\")",
-      "Bash(xargs grep -l \"generateOfferPdf\\\\|generatePdf\")"
+      "Bash(xargs grep -l \"generateOfferPdf\\\\|generatePdf\")",
+      "Bash(xargs grep -l \"basePrice\\\\|doorPrice\\\\|modelPrice\\\\|USA_PRICES\\\\|DOOR_MODELS\"')"
     ]
   }
 }

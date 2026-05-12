@@ -525,6 +525,16 @@ export const ERKADO_SPECIAL_TOC_TYPES = [
 ] as const;
 export type ErkadoSpecialTocType = typeof ERKADO_SPECIAL_TOC_TYPES[number];
 
+export const TOC_FIX_TYPES = ["Toc fix 90mm"] as const;
+export type TocFixType = typeof TOC_FIX_TYPES[number];
+
+export const TOC_FIX_FINISAJE = ["GREKO", "CPL ST/PREMIUM", "CPL 0.2", "LACUIT"] as const;
+export type TocFixFinisaj = typeof TOC_FIX_FINISAJE[number];
+
+export const TOC_FIX_PRICES: Record<string, Record<string, number>> = {
+  "Toc fix 90mm": { "GREKO": 78, "CPL ST/PREMIUM": 86, "CPL 0.2": 100, "LACUIT": 173 },
+};
+
 export function getErkadoSpecialTocRanges(tipToc: string): string[] {
   if (tipToc === "Toc reglabil cu falt") return ERKADO_TOC_CU_FALT.map(e => e.range);
   if (tipToc === "Toc reglabil fara falt") return ERKADO_TOC_FARA_FALT.map(e => e.range);
