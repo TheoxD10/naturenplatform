@@ -856,9 +856,9 @@ export default function Configurator() {
     : 0;
   const totalMontajRon = cartMontajRon + currentMontajRon;
   const totalTransportRon = ofertaTransport.filter(m => m.name.trim() && m.priceRon > 0).reduce((s, m) => s + m.priceRon * (m.qty || 1), 0);
-  const totalBeforeDiscount = grandTotal * rate + totalMontajRon + totalTransportRon;
+  const productsRonFaraTva = grandTotal * rate;
   const discountAmtRon = discountType === "percent"
-    ? totalBeforeDiscount * (parseFloat(discountPercent) / 100)
+    ? productsRonFaraTva - productsRonFaraTva / (1 + parseFloat(discountPercent) / 100)
     : parseFloat(discountFlat) || 0;
   const discountLabel = discountType === "percent"
     ? `${discountPercent}%`
@@ -2680,7 +2680,7 @@ export default function Configurator() {
             <p className="text-xs text-slate-500 mt-1">
               După reducere ({discountLabel}):{" "}
               <span className="font-semibold text-slate-700">
-                {(totalBeforeDiscount - discountAmtRon).toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RON
+                {(productsRonFaraTva - discountAmtRon + totalMontajRon + totalTransportRon).toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} RON
               </span>
             </p>
           )}

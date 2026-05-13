@@ -79,23 +79,19 @@ export async function GET() {
 
   data["TOC_V2"] = tocData;
 
-  // ── 3. Aristo static prices ──────────────────────────────────
+  // ── 3. Aristo static prices (overrides any Excel rows for this collection) ──
   if (!data["FI3D"]) data["FI3D"] = {};
-  if (!data["FI3D"]["Aristo"]) data["FI3D"]["Aristo"] = {};
-  const aristoModels: [string, number | null][] = [
-    ["MODEL 1", 177],
-    ["MODEL 2", null],
-    ["MODEL 3", null],
-    ["MODEL 4", null],
-    ["MODEL 5", null],
-    ["MODEL 6 (sticla transparenta)", 198],
-    ["MODEL 7 (sticla transparenta)", null],
-    ["MODEL 8 (sticla transparenta)", null],
-    ["MODEL 9 (sticla transparenta)", null],
-  ];
-  for (const [m, p] of aristoModels) {
-    if (!(m in data["FI3D"]["Aristo"])) data["FI3D"]["Aristo"][m] = p;
-  }
+  data["FI3D"]["Aristo"] = {
+    "MODEL 1": 177,
+    "MODEL 2": 177,
+    "MODEL 3": 177,
+    "MODEL 4": 177,
+    "MODEL 5": 177,
+    "MODEL 6 (sticla transparenta)": 198,
+    "MODEL 7 (sticla transparenta)": 198,
+    "MODEL 8 (sticla transparenta)": 198,
+    "MODEL 9 (sticla transparenta)": 198,
+  };
 
   // ── 4. INNOVA static supplement (prices TBD — add rows to Excel Noduri to set real prices) ──
   if (!data["INNOVA"]) {
