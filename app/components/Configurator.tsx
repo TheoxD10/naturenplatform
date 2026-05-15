@@ -8,25 +8,14 @@ import {
   STANDARD_OPTIONS,
   USA_DUBLA_TYPES,
   TOC_VARIANTE,
-  ERKADO_REGLAJ,
-  ERKADO_TOC_TUNEL,
   ERKADO_TOC_TUNEL_FINISAJE,
   type ErkadoTocTunelFinisaj,
   ERKADO_SPECIAL_TOC_TYPES,
-  getErkadoSpecialTocRanges,
-  getErkadoSpecialTocFinisaje,
-  getErkadoSpecialTocPrice,
-  getErkadoSpecialTocRangePrices,
-  getErkadoSpecialTocFinisajPrices,
-  NATUREN_TOC_REGLABIL_DREPT,
   NATUREN_SPECIAL_TOC_TYPES,
   TOC_FIX_TYPES,
   TOC_FIX_FINISAJE,
-  TOC_FIX_PRICES,
   PERVAZ_FIX_ERKADO_TYPES,
-  PERVAZ_FIX_ERKADO_PRICES,
   PERVAZ_FIX_NATUREN_TYPES,
-  PERVAZ_FIX_NATUREN_PRICES,
   BROASCA_TIPURI_HW,
   BROASCA_DIMENSIUNI,
   BROASCA_CULORI_HW,
@@ -478,6 +467,17 @@ export default function Configurator() {
     deleteDoorPriceOverride,
     euroCourse,
     updateEuroCourse,
+    erkadoReglaj,
+    erkadoTocTunel,
+    naturenTocReglabilDrept,
+    tocFixPrices,
+    pervazFixErkadoPrices,
+    pervazFixNaturenPrices,
+    getErkadoSpecialTocRanges,
+    getErkadoSpecialTocFinisaje,
+    getErkadoSpecialTocPrice,
+    getErkadoSpecialTocRangePrices,
+    getErkadoSpecialTocFinisajPrices,
   } = useConfiguratorOptions();
 
   const [doorsData, setDoorsData] = useState<DoorsData>({});
@@ -643,7 +643,7 @@ export default function Configurator() {
           return opt.toLowerCase().includes(tocBrand);
         })
     : [];
-  const erkadoReglajPrices = Object.fromEntries(ERKADO_REGLAJ.map(r => [r.range, r.priceEur]));
+  const erkadoReglajPrices = Object.fromEntries(erkadoReglaj.map(r => [r.range, r.priceEur]));
 
   // ── All cost options (from Firestore) ────────────────────
   const allCostLabels = costuriLabels;
@@ -677,7 +677,7 @@ export default function Configurator() {
     ? (doorPriceOverrides[`${finisaj}|${colectie}|${model}`] ?? doorsData[finisaj]?.[colectie]?.[model] ?? null)
     : null;
   const erkadoReglajPrice = tocBrand === "erkado" && !isTocSistemAscuns
-    ? (ERKADO_REGLAJ.find(r => r.range === tocColectie)?.priceEur ?? null)
+    ? (erkadoReglaj.find(r => r.range === tocColectie)?.priceEur ?? null)
     : null;
   const tocPrice = isTocSistemAscuns
     ? (tocFinisaj && effectiveTocColectie && tocModel)
@@ -690,16 +690,16 @@ export default function Configurator() {
     : null;
   // Erkado toc tunel price lookup
   const erkadoTocTunelEntry = (tocFinisaj === "Toc tunel" && tocTunelBrand === "erkado" && tocTunelErkadoReglaj)
-    ? ERKADO_TOC_TUNEL.find(e => e.range === tocTunelErkadoReglaj) ?? null
+    ? erkadoTocTunel.find(e => e.range === tocTunelErkadoReglaj) ?? null
     : null;
   const erkadoTocTunelBasePrice: number | null = (erkadoTocTunelEntry && tocTunelErkadoFinisaj)
-    ? (erkadoTocTunelEntry[tocTunelErkadoFinisaj as keyof typeof erkadoTocTunelEntry] as number ?? null)
+    ? ((erkadoTocTunelEntry as Record<string, unknown>)[tocTunelErkadoFinisaj] as number ?? null)
     : null;
   const erkadoTocTunelReglajPrices: Record<string, number | null> = Object.fromEntries(
-    ERKADO_TOC_TUNEL.map(e => [e.range, tocTunelErkadoFinisaj ? (e[tocTunelErkadoFinisaj as keyof typeof e] as number ?? null) : null])
+    erkadoTocTunel.map(e => [e.range, tocTunelErkadoFinisaj ? ((e as Record<string, unknown>)[tocTunelErkadoFinisaj] as number ?? null) : null])
   );
   const erkadoTocTunelFinisajPrices: Record<string, number | null> = erkadoTocTunelEntry
-    ? Object.fromEntries(ERKADO_TOC_TUNEL_FINISAJE.map(f => [f, erkadoTocTunelEntry[f as keyof typeof erkadoTocTunelEntry] as number ?? null]))
+    ? Object.fromEntries(ERKADO_TOC_TUNEL_FINISAJE.map(f => [f, (erkadoTocTunelEntry as Record<string, unknown>)[f] as number ?? null]))
     : {};
 
   const tocTunelNatuurenBase = tocTunelBrand === "naturen" ? (parseFloat(tocTunelPrice) || null) : null;
@@ -716,22 +716,22 @@ export default function Configurator() {
   // Toc reglabil drept Naturen
   const isNaturenReglabilDrept = (NATUREN_SPECIAL_TOC_TYPES as readonly string[]).includes(tocFinisaj);
   const naturenReglabilDreptRangePrices: Record<string, number | null> = Object.fromEntries(
-    NATUREN_TOC_REGLABIL_DREPT.map(e => [e.range, e.price])
+    naturenTocReglabilDrept.map(e => [e.range, e.price])
   );
   const naturenReglabilDreptPrice: number | null = isNaturenReglabilDrept && natReglajDrept
-    ? (NATUREN_TOC_REGLABIL_DREPT.find(e => e.range === natReglajDrept)?.price ?? null)
+    ? (naturenTocReglabilDrept.find(e => e.range === natReglajDrept)?.price ?? null)
     : null;
 
   const isTocFix = (TOC_FIX_TYPES as readonly string[]).includes(tocFinisaj);
   const tocFixPrice: number | null = isTocFix
-    ? (TOC_FIX_PRICES[tocFinisaj]?.[erkadoSpecialFinisaj] ?? null)
+    ? (tocFixPrices[tocFinisaj]?.[erkadoSpecialFinisaj] ?? null)
     : null;
 
   const tocPervazPrice: number | null = isTocFix && erkadoSpecialFinisaj
     ? tocPervazBrand === "erkado" && tocPervazType
-      ? (PERVAZ_FIX_ERKADO_PRICES[tocPervazType]?.[erkadoSpecialFinisaj] ?? null)
+      ? (pervazFixErkadoPrices[tocPervazType]?.[erkadoSpecialFinisaj] ?? null)
       : tocPervazBrand === "naturen" && tocPervazType
-      ? (PERVAZ_FIX_NATUREN_PRICES[tocPervazType] ?? null)
+      ? (pervazFixNaturenPrices[tocPervazType] ?? null)
       : null
     : null;
 
@@ -2013,7 +2013,7 @@ export default function Configurator() {
                       <FieldLabel>Reglaj</FieldLabel>
                       <Combo
                         value={tocTunelErkadoReglaj}
-                        options={ERKADO_TOC_TUNEL.map(e => e.range)}
+                        options={erkadoTocTunel.map(e => e.range)}
                         onChange={v => { setTocTunelErkadoReglaj(v); setTocTunelErkadoFinisaj(""); }}
                         optionPrices={erkadoTocTunelReglajPrices}
                       />
@@ -2067,7 +2067,7 @@ export default function Configurator() {
                   <FieldLabel>Reglaj (mm)</FieldLabel>
                   <Combo
                     value={natReglajDrept}
-                    options={NATUREN_TOC_REGLABIL_DREPT.map(e => e.range)}
+                    options={naturenTocReglabilDrept.map(e => e.range)}
                     onChange={setNatReglajDrept}
                     optionPrices={naturenReglabilDreptRangePrices}
                   />
@@ -2082,7 +2082,7 @@ export default function Configurator() {
                     value={erkadoSpecialFinisaj}
                     options={[...TOC_FIX_FINISAJE]}
                     onChange={setErkadoSpecialFinisaj}
-                    optionPrices={Object.fromEntries(TOC_FIX_FINISAJE.map(f => [f, TOC_FIX_PRICES[tocFinisaj]?.[f] ?? null]))}
+                    optionPrices={Object.fromEntries(TOC_FIX_FINISAJE.map(f => [f, tocFixPrices[tocFinisaj]?.[f] ?? null]))}
                   />
                 </div>
                 <PriceBadge price={tocFixPrice} selected={erkadoSpecialFinisaj !== ""} />
@@ -2111,7 +2111,7 @@ export default function Configurator() {
                 {tocBrand === "erkado" && !isTocSistemAscuns && (
                   <div className="flex-1">
                     <FieldLabel>Reglaj</FieldLabel>
-                    <Combo value={tocColectie} options={ERKADO_REGLAJ.map(r => r.range)} onChange={handleTocReglaj}
+                    <Combo value={tocColectie} options={erkadoReglaj.map(r => r.range)} onChange={handleTocReglaj}
                       optionPrices={erkadoReglajPrices} />
                   </div>
                 )}
@@ -2166,7 +2166,7 @@ export default function Configurator() {
                     options={[...PERVAZ_FIX_ERKADO_TYPES]}
                     onChange={setTocPervazType}
                     optionPrices={Object.fromEntries(
-                      PERVAZ_FIX_ERKADO_TYPES.map(t => [t, PERVAZ_FIX_ERKADO_PRICES[t]?.[erkadoSpecialFinisaj] ?? null])
+                      PERVAZ_FIX_ERKADO_TYPES.map(t => [t, pervazFixErkadoPrices[t]?.[erkadoSpecialFinisaj] ?? null])
                     )}
                   />
                 </div>
@@ -2179,7 +2179,7 @@ export default function Configurator() {
                     options={[...PERVAZ_FIX_NATUREN_TYPES]}
                     onChange={setTocPervazType}
                     optionPrices={Object.fromEntries(
-                      PERVAZ_FIX_NATUREN_TYPES.map(t => [t, PERVAZ_FIX_NATUREN_PRICES[t]])
+                      PERVAZ_FIX_NATUREN_TYPES.map(t => [t, pervazFixNaturenPrices[t]])
                     )}
                   />
                 </div>
